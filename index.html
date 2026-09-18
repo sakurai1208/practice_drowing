@@ -558,7 +558,7 @@
 (function(){
   "use strict";
 
-  var STORAGE_KEY = "hidariteKeikochou_v2";
+  var STORAGE_KEY = "hidariteKeikochou_v3";
   var settings = {
     targets: { straight:50, curve:40, circle:30, spiral:20, box:20, cylinder:20, free:30 },
     fadeEnabled: false,
@@ -669,8 +669,8 @@
     curve:"腕全体を大きく使って、流れるような曲線を引こう",
     circle:"手首を固めず、肩とひじで一筆で丸く",
     spiral:"中心から等間隔を意識して、外側へ広げよう",
-    box:"アタリの基本。面の向きとパースを意識して形をとろう",
-    cylinder:"断面の楕円の丸みと、側面の平行ストロークを合わせよう",
+    box:"アタリの基本。面の向きとパースの収束を意識して形をとろう",
+    cylinder:"上下の楕円の丸みの変化と、側面のパースを意識しよう",
     free:"ガイドなし。画面いっぱいに腕を振って脱力しよう"
   };
 
@@ -693,7 +693,7 @@
 
   function fitPointsInBounds(pts, margin, keyPoints){
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for(var i=0;i<pts.length;i++){
+    for(var i=0; i<pts.length; i++){
       if(pts[i].x < minX) minX = pts[i].x;
       if(pts[i].x > maxX) maxX = pts[i].x;
       if(pts[i].y < minY) minY = pts[i].y;
@@ -710,12 +710,12 @@
     var targetCx = W / 2;
     var targetCy = H / 2;
 
-    for(var j=0;j<pts.length;j++){
+    for(var j=0; j<pts.length; j++){
       pts[j].x = targetCx + (pts[j].x - curCx) * scale;
       pts[j].y = targetCy + (pts[j].y - curCy) * scale;
     }
     if(keyPoints){
-      for(var k=0;k<keyPoints.length;k++){
+      for(var k=0; k<keyPoints.length; k++){
         keyPoints[k].x = targetCx + (keyPoints[k].x - curCx) * scale;
         keyPoints[k].y = targetCy + (keyPoints[k].y - curCy) * scale;
       }
@@ -731,6 +731,33 @@
     return pts;
   }
 
+  // ---------- 3D Perspective Projection Engine ----------
+  function rotatePoint(p, pitch, yaw, roll){
+    var cy = Math.cos(yaw), sy = Math.sin(yaw);
+    var x1 = p.x * cy + p.z * sy;
+    var y1 = p.y;
+    var z1 = -p.x * sy + p.z * cy;
+
+    var cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var x2 = x1;
+    var y2 = y1 * cp - z1 * sp;
+    var z2 = y1 * sp + z1 * cp;
+
+    var cr = Math.cos(roll), sr = Math.sin(roll);
+    var x3 = x2 * cr - y2 * sr;
+    var y3 = x2 * sr + y2 * cr;
+    var z3 = z2;
+    return { x: x3, y: y3, z: z3 };
+  }
+
+  function projectPoint(p, camDist, fovScale){
+    var zDist = camDist - p.z;
+    if(zDist < 1) zDist = 1;
+    var s = fovScale / zDist;
+    return { x: p.x * s, y: -p.y * s, z: p.z };
+  }
+
+  // ---------- Generators ----------
   function genStraight(){
     var margin = Math.min(W,H)*0.16;
     var angle = Math.random()*Math.PI;
@@ -820,88 +847,172 @@
 
   function genBox(){
     var margin = Math.min(W,H)*0.16;
+    var camDist = 320, fovScale = 320;
+    var bW = 120 + Math.random()*40;
+    var bH = 120 + Math.random()*50;
+    var bD = 120 + Math.random()*40;
     var isBirdEye = Math.random() < 0.75;
-    var bW = Math.min(W,H) * (0.35 + Math.random()*0.18);
-    var bD = Math.min(W,H) * (0.28 + Math.random()*0.18);
-    var bH = Math.min(W,H) * (0.35 + Math.random()*0.25);
+    var pitch = isBirdEye ? (0.30 + Math.random()*0.20) : -(0.28 + Math.random()*0.16);
+    var yawSign = Math.random() < 0.5 ? 1 : -1;
+    var yaw = yawSign * (0.55 + Math.random()*0.35);
+    var roll = (Math.random() - 0.5) * 0.08;
 
-    var angleL = 0.55 + Math.random()*0.35;
-    var angleR = 0.55 + Math.random()*0.35;
-    var vxL = -Math.cos(angleL)*bD, vyL = -Math.sin(angleL)*bD*(isBirdEye ? 1 : -1);
-    var vxR = Math.cos(angleR)*bW,  vyR = -Math.sin(angleR)*bW*(isBirdEye ? 1 : -1);
-    var vDown = isBirdEye ? bH : -bH;
-
-    var p0 = { x: 0, y: 0 };
-    var p1 = { x: p0.x + vxL, y: p0.y + vyL };
-    var p2 = { x: p0.x + vxR, y: p0.y + vyR };
-    var p3 = { x: p1.x + vxR, y: p1.y + vyR };
-    var p4 = { x: p0.x, y: p0.y + vDown };
-    var p5 = { x: p1.x, y: p1.y + vDown };
-    var p6 = { x: p2.x, y: p2.y + vDown };
-
-    var segPairs = [
-      [p0, p1], [p1, p3], [p3, p2], [p2, p0],
-      [p0, p4], [p1, p5], [p2, p6],
-      [p5, p4], [p4, p6]
+    var hw = bW/2, hh = bH/2, hd = bD/2;
+    var vLocal = [
+      {x:-hw, y:-hh, z:-hd},
+      {x: hw, y:-hh, z:-hd},
+      {x: hw, y: hh, z:-hd},
+      {x:-hw, y: hh, z:-hd},
+      {x:-hw, y:-hh, z: hd},
+      {x: hw, y:-hh, z: hd},
+      {x: hw, y: hh, z: hd},
+      {x:-hw, y: hh, z: hd}
     ];
+
+    var faces = [
+      { v:[3,2,6,7], n:{x:0, y:1, z:0}, c:{x:0, y:hh, z:0} },
+      { v:[0,4,5,1], n:{x:0, y:-1, z:0}, c:{x:0, y:-hh, z:0} },
+      { v:[4,5,6,7], n:{x:0, y:0, z:1}, c:{x:0, y:0, z:hd} },
+      { v:[1,0,3,2], n:{x:0, y:0, z:-1}, c:{x:0, y:0, z:-hd} },
+      { v:[5,1,2,6], n:{x:1, y:0, z:0}, c:{x:hw, y:0, z:0} },
+      { v:[0,4,7,3], n:{x:-1, y:0, z:0}, c:{x:-hw, y:0, z:0} }
+    ];
+
+    var edgeMap = {};
+    for(var f=0; f<faces.length; f++){
+      var fc = faces[f];
+      var rc = rotatePoint(fc.c, pitch, yaw, roll);
+      var rn = rotatePoint(fc.n, pitch, yaw, roll);
+      var vCam = { x: -rc.x, y: -rc.y, z: camDist - rc.z };
+      var dot = rn.x*vCam.x + rn.y*vCam.y + rn.z*vCam.z;
+      if(dot > 0){
+        for(var e=0; e<4; e++){
+          var u = fc.v[e];
+          var v = fc.v[(e+1)%4];
+          var key = Math.min(u,v) + "_" + Math.max(u,v);
+          edgeMap[key] = [u, v];
+        }
+      }
+    }
+
+    var v2d = new Array(8);
+    for(var vi=0; vi<8; vi++){
+      var rotV = rotatePoint(vLocal[vi], pitch, yaw, roll);
+      v2d[vi] = projectPoint(rotV, camDist, fovScale);
+    }
 
     var paths = [];
     var allPts = [];
-    var keyPoints = [p0, p1, p2, p3, p4, p5, p6];
+    var keyPointsMap = {};
 
-    for(var s=0; s<segPairs.length; s++){
-      var segPts = sampleSegment(segPairs[s][0], segPairs[s][1], 28);
-      paths.push(segPts);
-      for(var k=0; k<segPts.length; k++) allPts.push(segPts[k]);
+    var edgeKeys = Object.keys(edgeMap);
+    for(var k=0; k<edgeKeys.length; k++){
+      var pair = edgeMap[edgeKeys[k]];
+      var pA = v2d[pair[0]], pB = v2d[pair[1]];
+      keyPointsMap[pair[0]] = pA;
+      keyPointsMap[pair[1]] = pB;
+      var seg = sampleSegment(pA, pB, 26);
+      paths.push(seg);
+      for(var s=0; s<seg.length; s++) allPts.push(seg[s]);
+    }
+
+    var keyPoints = [];
+    var kpKeys = Object.keys(keyPointsMap);
+    for(var ki=0; ki<kpKeys.length; ki++){
+      keyPoints.push(keyPointsMap[kpKeys[ki]]);
     }
 
     fitPointsInBounds(allPts, margin, keyPoints);
-    for(var p=0; p<paths.length; p++){
-      for(var q=0; q<paths[p].length; q++){
-        // 点群参照は同期済み
-      }
-    }
     return { points: allPts, paths: paths, keyPoints: keyPoints };
   }
 
   function genCylinder(){
     var margin = Math.min(W,H)*0.16;
-    var rx = Math.min(W,H) * (0.24 + Math.random()*0.12);
-    var ry = rx * (0.34 + Math.random()*0.24);
-    var len = Math.min(W,H) * (0.42 + Math.random()*0.25);
-    var tilt = (Math.random() - 0.5) * 0.45;
+    var camDist = 320, fovScale = 320;
+    var R = 60 + Math.random()*20;
+    var cylH = 130 + Math.random()*50;
+    var isBirdEye = Math.random() < 0.75;
+    var pitch = isBirdEye ? (0.32 + Math.random()*0.20) : -(0.30 + Math.random()*0.16);
+    var yaw = (Math.random() - 0.5) * 0.4;
+    var roll = (Math.random() - 0.5) * 0.08;
 
-    var ax = Math.sin(tilt)*len, ay = Math.cos(tilt)*len;
-    var c1 = { x: 0, y: -ay/2 };
-    var c2 = { x: c1.x + ax, y: c1.y + ay };
+    var topC = rotatePoint({x:0, y:cylH/2, z:0}, pitch, yaw, roll);
+    var topN = rotatePoint({x:0, y:1, z:0}, pitch, yaw, roll);
+    var vTop = { x: -topC.x, y: -topC.y, z: camDist - topC.z };
+    var dotTop = topN.x*vTop.x + topN.y*vTop.y + topN.z*vTop.z;
 
-    var topPts = [];
-    var N_top = 80;
-    for(var i=0; i<=N_top; i++){
-      var a = i/N_top * Math.PI*2;
-      topPts.push({
-        x: c1.x + Math.cos(a)*rx*Math.cos(tilt) - Math.sin(a)*ry*Math.sin(tilt),
-        y: c1.y + Math.cos(a)*rx*Math.sin(tilt) + Math.sin(a)*ry*Math.cos(tilt)
-      });
+    var N = 120;
+    var ptsTop3D = new Array(N);
+    var ptsBot3D = new Array(N);
+    var visibleSide = new Array(N);
+
+    for(var i=0; i<N; i++){
+      var a = i * (Math.PI*2 / N);
+      var cosA = Math.cos(a), sinA = Math.sin(a);
+      var pT = rotatePoint({x: R*cosA, y: cylH/2, z: R*sinA}, pitch, yaw, roll);
+      var pB = rotatePoint({x: R*cosA, y: -cylH/2, z: R*sinA}, pitch, yaw, roll);
+      var pM = rotatePoint({x: R*cosA, y: 0, z: R*sinA}, pitch, yaw, roll);
+      var norm = rotatePoint({x: cosA, y: 0, z: sinA}, pitch, yaw, roll);
+
+      var vCam = { x: -pM.x, y: -pM.y, z: camDist - pM.z };
+      var dSide = norm.x*vCam.x + norm.y*vCam.y + norm.z*vCam.z;
+
+      ptsTop3D[i] = pT;
+      ptsBot3D[i] = pB;
+      visibleSide[i] = dSide > 0;
     }
 
-    var bottomPts = [];
-    var N_bot = 50;
-    for(var j=0; j<=N_bot; j++){
-      var b = j/N_bot * Math.PI;
-      bottomPts.push({
-        x: c2.x + Math.cos(b)*rx*Math.cos(tilt) - Math.sin(b)*ry*Math.sin(tilt),
-        y: c2.y + Math.cos(b)*rx*Math.sin(tilt) + Math.sin(b)*ry*Math.cos(tilt)
-      });
+    var i1 = -1, i2 = -1;
+    for(var j=0; j<N; j++){
+      var prev = (j - 1 + N) % N;
+      var next = (j + 1) % N;
+      if(!visibleSide[prev] && visibleSide[j]) i1 = j;
+      if(visibleSide[j] && !visibleSide[next]) i2 = j;
+    }
+    if(i1 === -1 || i2 === -1){
+      i1 = Math.round(N * 0.25);
+      i2 = Math.round(N * 0.75);
     }
 
-    var leftSide = sampleSegment(topPts[Math.round(N_top*0.5)], bottomPts[0], 35);
-    var rightSide = sampleSegment(topPts[0], bottomPts[N_bot], 35);
+    var p2dTop = new Array(N);
+    var p2dBot = new Array(N);
+    for(var k=0; k<N; k++){
+      p2dTop[k] = projectPoint(ptsTop3D[k], camDist, fovScale);
+      p2dBot[k] = projectPoint(ptsBot3D[k], camDist, fovScale);
+    }
 
-    var paths = [topPts, bottomPts, leftSide, rightSide];
+    var paths = [];
     var allPts = [];
+
+    // 全周が見える底面
+    var fullLoop = [];
+    var fullPts2D = (dotTop > 0) ? p2dTop : p2dBot;
+    for(var f=0; f<=N; f++){
+      fullLoop.push({ x: fullPts2D[f % N].x, y: fullPts2D[f % N].y });
+    }
+    paths.push(fullLoop);
+
+    // 手前側（半周）が見える底面の弧
+    var arcLoop = [];
+    var arcPts2D = (dotTop > 0) ? p2dBot : p2dTop;
+    var idx = i1;
+    while(true){
+      arcLoop.push({ x: arcPts2D[idx].x, y: arcPts2D[idx].y });
+      if(idx === i2) break;
+      idx = (idx + 1) % N;
+    }
+    paths.push(arcLoop);
+
+    // 側面の輪郭線（母線）2本（交差せず確実に上底と下底の同一点を結ぶ）
+    var side1 = sampleSegment(p2dTop[i1], p2dBot[i1], 28);
+    var side2 = sampleSegment(p2dTop[i2], p2dBot[i2], 28);
+    paths.push(side1);
+    paths.push(side2);
+
     for(var p=0; p<paths.length; p++){
-      for(var q=0; q<paths[p].length; q++) allPts.push(paths[p][q]);
+      for(var q=0; q<paths[p].length; q++){
+        allPts.push(paths[p][q]);
+      }
     }
 
     fitPointsInBounds(allPts, margin);
@@ -934,7 +1045,7 @@
     if(!guide || !guide.points || guide.points.length === 0) return;
     var guidePts = guide.points;
     var allUserPts = [];
-    var i, s, pt;
+    var i, s;
 
     for(s=0; s<strokesArray.length; s++){
       for(i=0; i<strokesArray[s].length; i++){
@@ -1118,7 +1229,6 @@
       ctx.strokeStyle = colorForDev(s.devs[i], s, theme);
       ctx.beginPath();
       ctx.moveTo(s.points[i-1].x, s.points[i-1].y);
-      ctx.lineTo(s.points[i].x, s.points[i-1].y ? s.points[i].y : s.points[i].y);
       ctx.lineTo(s.points[i].x, s.points[i].y);
       ctx.stroke();
     }
@@ -1383,7 +1493,7 @@
     if(!btn) return;
     settings.difficulty = btn.dataset.val;
     Array.prototype.slice.call(difficultySeg.querySelectorAll("button")).forEach(function(b){
-      b.setAttribute("aria-pressed", b===btn ? "true":"false");
+      b.setAttribute("aria-pressed", b.dataset.val===settings.difficulty ? "true":"false");
     });
     saveState();
   });
