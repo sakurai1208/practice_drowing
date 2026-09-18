@@ -1,18 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <!-- <head> 内に追加 -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="左手稽古帖">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
 <title>左手 稽古帖</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
+  [hidden] { display: none !important; }
+
   :root{
     --paper:#F0EDE4;
     --paper-deep:#E7E1D2;
@@ -54,7 +55,11 @@
   }
 
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
-  html,body{margin:0;padding:0;}
+  html,body{
+    margin:0;
+    padding:0;
+    overscroll-behavior:none;
+  }
   body{
     background:var(--paper);
     color:var(--ink);
@@ -144,12 +149,15 @@
     aspect-ratio:4/3;
     border-radius:12px;
     overflow:hidden;
+    touch-action:none;
   }
   canvas{
     display:block;
     width:100%;
     height:100%;
     touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
   }
   .lead-row{
     padding:14px 6px 4px;
@@ -166,6 +174,9 @@
     align-items:center;
     gap:14px;
     padding:14px 6px 4px;
+  }
+  .result-row[hidden]{
+    display:none !important;
   }
   .stamp{
     width:60px;height:60px;
@@ -287,6 +298,9 @@
     background:rgba(20,18,15,0.4);
     display:flex; align-items:flex-end; justify-content:center;
     z-index:50;
+  }
+  .overlay[hidden]{
+    display:none !important;
   }
   .settings-panel{
     background:var(--paper);
@@ -474,7 +488,7 @@
     <div class="stat-chip">連続 <strong id="streakCount">0</strong>日目</div>
   </section>
 
-  <p class="tip">Safariの共有ボタンから「ホーム画面に追加」しておくと、アプリのように開けます。線は朱色のお手本に近いほど緑、離れるほど赤に色分けされます。</p>
+  <p class="tip">Safariの共有ボタンから「ホーム画面に追加」しておくと、全画面アプリとして開けます。線は朱色のお手本に近いほど緑、離れるほど赤に色分けされます。</p>
 </div>
 
 <div class="overlay" id="overlay" hidden>
@@ -531,7 +545,7 @@
   // ---------- persistence ----------
   var STORAGE_KEY = "hidariteKeikochou_v1";
   var settings = { targets:{ straight:50, curve:40, circle:30, spiral:20, free:30 }, fadeEnabled:false, difficulty:"normal" };
-  var history = {}; // "YYYY-MM-DD" -> { straight:n, curve:n, circle:n, spiral:n, free:n }
+  var history = {};
 
   function loadState(){
     try{
@@ -545,12 +559,12 @@
         }
         if(parsed && parsed.history) history = parsed.history;
       }
-    }catch(e){ /* 保存領域が使えない場合はメモリ上だけで動かす */ }
+    }catch(e){}
   }
   function saveState(){
     try{
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ settings:settings, history:history }));
-    }catch(e){ /* 保存に失敗しても練習は続けられるようにする */ }
+    }catch(e){}
   }
 
   function pad2(n){ return n<10 ? "0"+n : ""+n; }
@@ -588,7 +602,7 @@
       var k = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
       if(totalFor(k) > 0){ streak++; d.setDate(d.getDate()-1); }
       else break;
-      if(streak > 3650) break; // safety valve
+      if(streak > 3650) break;
     }
     return streak;
   }
@@ -661,7 +675,6 @@
     return [x1,y1,x2,y2];
   }
 
-  // ---------- guide generators (fresh pixel-space points each call) ----------
   function genStraight(){
     var margin = Math.min(W,H)*0.15;
     var angle = Math.random()*Math.PI;
@@ -738,7 +751,6 @@
 
   var GENERATORS = { straight: genStraight, curve: genCurve, circle: genCircle, spiral: genSpiral };
 
-  // ---------- scoring ----------
   function getThresholdFactors(){
     var table = {
       easy:   { covF:0.065, kF:0.075 },
@@ -749,6 +761,7 @@
   }
 
   function handleScoredStrokeComplete(points){
+    if(!guide || !guide.points || guide.points.length===0) return;
     var guidePts = guide.points;
     var i, j, dx, dy, d, minD;
     var sumDev = 0;
@@ -803,9 +816,9 @@
     requestRender();
   }
 
-  // ---------- result UI ----------
   function showResult(overall, accuracyScore, coverageScore){
     resultRow.hidden = false;
+    resultRow.style.display = "flex";
     scoreNum.textContent = overall;
     subAccuracy.textContent = "線のブレ " + accuracyScore;
     subCoverage.textContent = "なぞれた範囲 " + coverageScore + "%";
@@ -817,15 +830,14 @@
     else { mark="△"; tier="tier-retry"; }
     stampMark.textContent = mark;
     stampMark.classList.add(tier);
-    // restart animation
     void stampMark.offsetWidth;
     stampMark.classList.add("pop");
   }
   function hideResult(){
     resultRow.hidden = true;
+    resultRow.style.display = "none";
   }
 
-  // ---------- rendering ----------
   function drawGridBackground(theme){
     var step = 26;
     ctx.fillStyle = theme.lineHair;
@@ -839,7 +851,7 @@
   }
 
   function drawGuide(g, opacity, theme){
-    if(!g) return;
+    if(!g || !g.points || g.points.length===0) return;
     ctx.save();
     ctx.globalAlpha = opacity;
     ctx.setLineDash([7,7]);
@@ -907,9 +919,14 @@
   }
 
   function render(){
+    if(W<=0 || H<=0) return;
     var theme = {
-      ink: cssVar("--ink"), shu: cssVar("--shu"), ai: cssVar("--ai"),
-      moss: cssVar("--moss"), paperDeep: cssVar("--paper-deep"), lineHair: cssVar("--line-hair")
+      ink: cssVar("--ink") || "#2A2724",
+      shu: cssVar("--shu") || "#B23B2A",
+      ai: cssVar("--ai") || "#3C5674",
+      moss: cssVar("--moss") || "#4B6E45",
+      paperDeep: cssVar("--paper-deep") || "#E7E1D2",
+      lineHair: cssVar("--line-hair") || "rgba(42,39,36,0.14)"
     };
     ctx.clearRect(0,0,W,H);
     ctx.fillStyle = theme.paperDeep;
@@ -957,7 +974,7 @@
 
   function newGuide(){
     scoredStroke = null;
-    if(mode !== "free" && GENERATORS[mode]){
+    if(mode !== "free" && GENERATORS[mode] && W > 0 && H > 0){
       guide = GENERATORS[mode]();
     } else {
       guide = null;
@@ -966,9 +983,9 @@
     resetGuideVisibility();
   }
 
-  // ---------- sizing ----------
   function resizeCanvas(){
     var rect = wrap.getBoundingClientRect();
+    if(rect.width === 0 || rect.height === 0) return;
     W = Math.max(1, Math.round(rect.width));
     H = Math.max(1, Math.round(rect.height));
     dpr = window.devicePixelRatio || 1;
@@ -983,11 +1000,11 @@
     newGuide();
   }
 
-  // ---------- pointer handling ----------
   function pointFromEvent(e){
     var rect = canvas.getBoundingClientRect();
     return { x: e.clientX-rect.left, y: e.clientY-rect.top, p: e.pressure>0 ? e.pressure : 0.5 };
   }
+
   canvas.addEventListener("pointerdown", function(e){
     if(mode!=="free" && !guide) return;
     try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
@@ -997,16 +1014,19 @@
     currentPoints = [pointFromEvent(e)];
     requestRender();
     e.preventDefault();
-  });
+  }, { passive:false });
+
   canvas.addEventListener("pointermove", function(e){
     if(!isDrawing) return;
     currentPoints.push(pointFromEvent(e));
     requestRender();
     e.preventDefault();
-  });
+  }, { passive:false });
+
   function finishPointer(e){
     if(!isDrawing) return;
     isDrawing = false;
+    try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
     var pts = currentPoints;
     currentPoints = [];
     if(pts.length < 2){ requestRender(); return; }
@@ -1016,7 +1036,6 @@
   window.addEventListener("pointerup", finishPointer);
   window.addEventListener("pointercancel", finishPointer);
 
-  // ---------- UI wiring ----------
   function switchMode(m){
     mode = m;
     tabs.forEach(function(t){ t.setAttribute("aria-selected", t.dataset.mode===m ? "true":"false"); });
@@ -1056,7 +1075,6 @@
     streakCountEl.textContent = computeStreak();
   }
 
-  // ---------- settings panel ----------
   function openSettings(){
     targetInputs.straight.value = settings.targets.straight;
     targetInputs.curve.value = settings.targets.curve;
@@ -1067,8 +1085,12 @@
       b.setAttribute("aria-pressed", b.dataset.val===settings.difficulty ? "true":"false");
     });
     overlay.hidden = false;
+    overlay.style.display = "flex";
   }
-  function closeSettings(){ overlay.hidden = true; }
+  function closeSettings(){
+    overlay.hidden = true;
+    overlay.style.display = "none";
+  }
   settingsBtn.addEventListener("click", openSettings);
   closeSettingsBtn.addEventListener("click", closeSettings);
   overlay.addEventListener("click", function(e){ if(e.target===overlay) closeSettings(); });
@@ -1105,15 +1127,26 @@
     updateStatsUI();
   });
 
-  // ---------- boot ----------
-  loadState();
-  updateStatsUI();
+  // ---------- 初期起動処理 ----------
+  function boot(){
+    loadState();
+    updateStatsUI();
+    resizeCanvas();
+    newGuide();
+    updateProgressUI();
+    closeSettings();
+    hideResult();
 
-  var ro = new ResizeObserver(function(){ handleResize(); });
-  ro.observe(wrap);
-  window.addEventListener("orientationchange", function(){ setTimeout(handleResize, 300); });
+    var ro = new ResizeObserver(function(){ handleResize(); });
+    ro.observe(wrap);
+    window.addEventListener("orientationchange", function(){ setTimeout(handleResize, 300); });
+  }
 
-  updateProgressUI();
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
 })();
 </script>
 </body>
