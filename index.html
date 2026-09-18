@@ -830,17 +830,32 @@
   }
 
   function genSpiral(){
-    var margin = Math.min(W,H)*0.15;
-    var maxR = Math.min(W,H)*0.40;
-    var turns = 2.4;
-    var cx = W/2, cy = H/2;
-    var N=260, pts=[];
-    for(var i=0; i<=N; i++){
-      var t=i/N;
-      var a = t*turns*Math.PI*2 - Math.PI/2;
-      var rr = maxR*0.10 + (maxR-maxR*0.10)*t;
-      pts.push({ x: cx+Math.cos(a)*rr, y: cy+Math.sin(a)*rr });
+    var margin = Math.min(W, H) * 0.15;
+    var turns = 2.0 + Math.random() * 1.5; // 2.0〜3.5巻き
+    var dir = Math.random() < 0.5 ? 1 : -1; // 時計回り / 反時計回りをランダム化
+    var startAngle = Math.random() * Math.PI * 2; // 描き始めの角度を全方位ランダム化
+    var maxR = Math.min(W, H) * 0.42;
+    var minR = maxR * (0.05 + Math.random() * 0.08); // 中心の広さ
+
+    // アタリ取りに役立つよう、真円だけでなく適度な楕円・傾きを付与
+    var aspect = 0.78 + Math.random() * 0.44; // 縦横比の変化
+    var tilt = Math.random() * Math.PI; // 全体の傾き
+
+    var N = 260, pts = [];
+    for(var i = 0; i <= N; i++){
+      var t = i / N;
+      var a = startAngle + dir * t * turns * Math.PI * 2;
+      var r = minR + (maxR - minR) * t;
+
+      // 楕円化と回転の計算
+      var ex = Math.cos(a) * r;
+      var ey = Math.sin(a) * r * aspect;
+      var rx = ex * Math.cos(tilt) - ey * Math.sin(tilt);
+      var ry = ex * Math.sin(tilt) + ey * Math.cos(tilt);
+
+      pts.push({ x: W / 2 + rx, y: H / 2 + ry });
     }
+
     fitPointsInBounds(pts, margin);
     return { points: pts, paths: [pts] };
   }
