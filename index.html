@@ -23,6 +23,7 @@
     --shu:#B23B2A;
     --shu-soft:rgba(178,59,42,0.14);
     --ai:#3C5674;
+    --ai-soft:rgba(60,86,116,0.15);
     --moss:#4B6E45;
     --stamp-empty:rgba(42,39,36,0.14);
     --shadow-card:0 1px 2px rgba(42,39,36,0.10), 0 10px 26px rgba(42,39,36,0.08);
@@ -35,6 +36,2125 @@
       --paper:#201E1A;
       --paper-deep:#2A2721;
       --ink:#ECE7DC;
+      --ink-soft:#B6AFA0;
+      --line-hair:rgba(236,231,220,0.16);
+      --shu:#E2795F;
+      --shu-soft:rgba(226,121,95,0.18);
+      --ai:#8FADCF;
+      --ai-soft:rgba(143,173,207,0.2);
+      --moss:#8DBB7C;
+      --stamp-empty:rgba(236,231,220,0.16);
+      --shadow-card:0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(0,0,0,0.38);
+      --shadow-sheet:0 -10px 34px rgba(0,0,0,0.5);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#201E1A; --paper-deep:#2A2721; --ink:#ECE7DC; --ink-soft:#B6AFA0;
+    --line-hair:rgba(236,231,220,0.16); --shu:#E2795F; --shu-soft:rgba(226,121,95,0.18);
+    --ai:#8FADCF; --ai-soft:rgba(143,173,207,0.2); --moss:#8DBB7C; --stamp-empty:rgba(236,231,220,0.16);
+    --shadow-card:0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(0,0,0,0.38);
+    --shadow-sheet:0 -10px 34px rgba(0,0,0,0.5);
+  }
+
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{
+    margin:0;
+    padding:0;
+    overscroll-behavior:none;
+  }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:var(--font-body);
+    min-height:100vh;
+  }
+  .app{
+    max-width:640px;
+    margin:0 auto;
+    padding:16px 18px calc(28px + env(safe-area-inset-bottom));
+  }
+  .app-header{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:10px;
+    margin-bottom:12px;
+  }
+  .app-header h1{
+    font-family:var(--font-display);
+    font-size:22px;
+    font-weight:700;
+    letter-spacing:.02em;
+    margin:0;
+  }
+  .app-header .sub{
+    display:block;
+    font-family:var(--font-body);
+    font-size:11.5px;
+    color:var(--ink-soft);
+    font-weight:500;
+    margin-top:3px;
+    letter-spacing:.03em;
+  }
+  .icon-btn{
+    border:none;
+    background:var(--paper-deep);
+    color:var(--ink-soft);
+    width:38px;height:38px;
+    border-radius:50%;
+    font-size:17px;
+    display:flex;align-items:center;justify-content:center;
+    cursor:pointer;
+    flex:0 0 auto;
+    touch-action:manipulation;
+  }
+  .icon-btn:active{ color:var(--ink); }
+
+  /* 大カテゴリ切り替えバー */
+  .view-switcher{
+    display:flex;
+    background:var(--paper-deep);
+    border-radius:12px;
+    padding:4px;
+    gap:4px;
+    margin-bottom:14px;
+  }
+  .view-btn{
+    flex:1 1 0;
+    padding:10px 8px;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    font-family:var(--font-body);
+    font-size:13.5px;
+    font-weight:700;
+    border-radius:9px;
+    cursor:pointer;
+    transition:background .15s ease, color .15s ease;
+  }
+  .view-btn.active{
+    background:var(--ink);
+    color:var(--paper);
+    box-shadow:0 2px 6px rgba(0,0,0,0.12);
+  }
+
+  /* 稽古（描画）タブ */
+  .tabs{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding-bottom:4px;
+    margin-bottom:12px;
+    scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
+  }
+  .tabs::-webkit-scrollbar{ display:none; }
+  .tab{
+    flex:0 0 auto;
+    padding:8px 14px;
+    border:none;
+    border-radius:999px;
+    background:transparent;
+    color:var(--ink-soft);
+    font-family:var(--font-body);
+    font-size:13.5px;
+    font-weight:500;
+    cursor:pointer;
+    touch-action:manipulation;
+    transition:background .15s ease,color .15s ease;
+  }
+  .tab[aria-selected="true"]{
+    background:var(--ink);
+    color:var(--paper);
+    font-weight:700;
+  }
+
+  .sheet{
+    background:var(--paper-deep);
+    border-radius:18px;
+    padding:12px;
+    box-shadow:var(--shadow-card);
+  }
+  .canvas-wrap{
+    position:relative;
+    width:100%;
+    aspect-ratio:4/3;
+    border-radius:12px;
+    overflow:hidden;
+    touch-action:none;
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:100%;
+    touch-action:none;
+    user-select:none;
+    -webkit-user-select:none;
+  }
+  .lead-row{
+    padding:14px 6px 4px;
+    text-align:center;
+  }
+  .lead-text{
+    margin:0;
+    font-size:14.5px;
+    color:var(--ink-soft);
+  }
+  .multi-actions{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin-top:10px;
+  }
+
+  .result-row{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    padding:14px 6px 4px;
+  }
+  .result-row[hidden]{ display:none !important; }
+  .stamp{
+    width:60px;height:60px;
+    border-radius:50%;
+    border:2.5px solid currentColor;
+    display:flex;align-items:center;justify-content:center;
+    font-family:var(--font-display);
+    font-size:27px;
+    font-weight:700;
+    transform:rotate(-6deg);
+    flex:0 0 auto;
+  }
+  .stamp.tier-good{ color:var(--moss); }
+  .stamp.tier-ok{ color:var(--ai); }
+  .stamp.tier-retry{ color:var(--shu); }
+  .stamp.pop{ animation:stampPop .38s ease; }
+  @keyframes stampPop{
+    0%{ transform:rotate(-6deg) scale(2); opacity:0; }
+    65%{ transform:rotate(-6deg) scale(0.92); opacity:1; }
+    100%{ transform:rotate(-6deg) scale(1); opacity:1; }
+  }
+  .result-text{ flex:1 1 auto; min-width:0; }
+  .score-num{
+    font-family:var(--font-display);
+    font-size:26px;
+    font-weight:700;
+    line-height:1;
+  }
+  .score-num .score-suffix{
+    font-family:var(--font-body);
+    font-size:13px;
+    font-weight:500;
+    color:var(--ink-soft);
+    margin-left:2px;
+  }
+  .score-sub{
+    margin-top:5px;
+    font-size:12px;
+    color:var(--ink-soft);
+    display:flex;
+    flex-direction:column;
+    gap:1px;
+  }
+  .result-actions{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    flex:0 0 auto;
+  }
+  .btn{
+    padding:9px 16px;
+    border-radius:10px;
+    border:none;
+    font-family:var(--font-body);
+    font-weight:700;
+    font-size:13.5px;
+    cursor:pointer;
+    touch-action:manipulation;
+    white-space:nowrap;
+  }
+  .btn-sm{
+    padding:6px 14px;
+    font-size:12.5px;
+    border-radius:8px;
+  }
+  .btn-primary{ background:var(--ink); color:var(--paper); }
+  .btn-ghost{ background:transparent; color:var(--ink-soft); border:1.5px solid var(--line-hair); }
+
+  .progress-row{
+    margin-top:18px;
+    padding:0 2px;
+  }
+  .progress-label{
+    font-size:13px;
+    color:var(--ink-soft);
+    margin-bottom:7px;
+    font-weight:500;
+  }
+  .stamps{
+    display:flex;
+    flex-wrap:wrap;
+    gap:4px;
+  }
+  .stamp-dot{
+    width:9px;height:9px;
+    border-radius:50%;
+    background:var(--stamp-empty);
+    flex:0 0 auto;
+  }
+  .stamp-dot.filled{ background:var(--shu); }
+
+  .stats-row{
+    display:flex;
+    gap:8px;
+    margin-top:14px;
+    padding:0 2px;
+  }
+  .stat-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:5px;
+    padding:6px 13px;
+    border-radius:999px;
+    background:var(--paper-deep);
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .stat-chip strong{
+    color:var(--ink);
+    font-weight:700;
+    font-size:14px;
+  }
+
+  /* パース問答（クイズ）用レイアウト */
+  .quiz-box{
+    margin-top:14px;
+  }
+  .quiz-q-tag{
+    display:inline-block;
+    font-size:12px;
+    font-weight:700;
+    color:var(--shu);
+    margin-bottom:4px;
+  }
+  .quiz-q-title{
+    margin:0 0 14px;
+    font-size:16px;
+    font-weight:700;
+    line-height:1.4;
+  }
+  .quiz-options{
+    display:grid;
+    grid-template-columns:1fr;
+    gap:9px;
+  }
+  .quiz-opt-btn{
+    width:100%;
+    padding:12px 16px;
+    border-radius:12px;
+    border:1.5px solid var(--line-hair);
+    background:var(--paper-deep);
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:14px;
+    font-weight:700;
+    cursor:pointer;
+    text-align:left;
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    touch-action:manipulation;
+    transition:transform .1s ease, border-color .15s ease;
+  }
+  .quiz-opt-btn:active{ transform:scale(0.985); }
+  .quiz-opt-btn.correct{
+    border-color:var(--moss);
+    background:rgba(75,110,69,0.12);
+    color:var(--moss);
+  }
+  .quiz-opt-btn.wrong{
+    border-color:var(--shu);
+    background:rgba(178,59,42,0.10);
+    color:var(--shu);
+  }
+
+  .quiz-feedback{
+    margin-top:14px;
+    background:var(--paper-deep);
+    border-radius:14px;
+    padding:14px;
+  }
+  .quiz-feedback-banner{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin-bottom:8px;
+  }
+  .quiz-badge{
+    font-family:var(--font-display);
+    font-size:22px;
+    font-weight:700;
+  }
+  .quiz-badge.good{ color:var(--moss); }
+  .quiz-badge.bad{ color:var(--shu); }
+  .quiz-explain{
+    margin:0 0 14px;
+    font-size:13px;
+    line-height:1.6;
+    color:var(--ink-soft);
+  }
+  .quiz-explain strong{
+    color:var(--ink);
+  }
+
+  .tip{
+    margin:20px 2px 0;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    line-height:1.6;
+    opacity:.85;
+  }
+
+  /* 設定モーダル */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(20,18,15,0.4);
+    display:flex; align-items:flex-end; justify-content:center;
+    z-index:50;
+  }
+  .overlay[hidden]{ display:none !important; }
+  .settings-panel{
+    background:var(--paper);
+    width:100%;
+    max-width:600px;
+    border-radius:20px 20px 0 0;
+    padding:20px 20px calc(20px + env(safe-area-inset-bottom));
+    box-shadow:var(--shadow-sheet);
+    max-height:84vh;
+    overflow-y:auto;
+  }
+  .settings-panel h2{
+    font-family:var(--font-display);
+    font-size:17px;
+    margin:0 0 16px;
+  }
+  .settings-block{ margin-bottom:20px; }
+  .settings-block-label{
+    font-size:13px;
+    font-weight:700;
+    margin-bottom:9px;
+  }
+  .settings-block-desc{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin:-5px 0 9px;
+    line-height:1.5;
+  }
+  .target-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .target-item{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--paper-deep);
+    border-radius:10px;
+    padding:8px 10px;
+    gap:8px;
+  }
+  .target-item span{ font-size:13px; }
+  .target-item input{
+    width:52px;
+    border:none;
+    background:transparent;
+    color:var(--ink);
+    font-family:var(--font-body);
+    font-size:14px;
+    font-weight:700;
+    text-align:right;
+  }
+  .switch-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    background:var(--paper-deep);
+    border-radius:10px;
+    padding:11px 13px;
+  }
+  .switch{
+    position:relative;
+    width:42px;height:24px;
+    flex:0 0 auto;
+  }
+  .switch input{ opacity:0; width:0; height:0; }
+  .switch .track{
+    position:absolute; inset:0;
+    background:var(--line-hair);
+    border-radius:999px;
+    transition:background .15s ease;
+  }
+  .switch .thumb{
+    position:absolute;
+    top:3px; left:3px;
+    width:18px;height:18px;
+    border-radius:50%;
+    background:var(--paper);
+    transition:transform .15s ease;
+  }
+  .switch input:checked + .track{ background:var(--shu); }
+  .switch input:checked + .track .thumb{ transform:translateX(18px); }
+
+  .seg{
+    display:flex;
+    background:var(--paper-deep);
+    border-radius:10px;
+    padding:3px;
+    gap:3px;
+  }
+  .seg button{
+    flex:1 1 0;
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    padding:8px 6px;
+    border-radius:8px;
+    font-family:var(--font-body);
+    font-size:13px;
+    font-weight:500;
+    cursor:pointer;
+  }
+  .seg button[aria-pressed="true"]{
+    background:var(--ink);
+    color:var(--paper);
+    font-weight:700;
+  }
+  .danger-btn{
+    width:100%;
+    padding:11px;
+    border-radius:10px;
+    border:1.5px solid var(--shu-soft);
+    background:transparent;
+    color:var(--shu);
+    font-family:var(--font-body);
+    font-weight:700;
+    font-size:13.5px;
+    cursor:pointer;
+  }
+  .close-row{ margin-top:6px; }
+  .close-btn{
+    width:100%;
+    padding:12px;
+    border-radius:10px;
+    border:none;
+    background:var(--ink);
+    color:var(--paper);
+    font-weight:700;
+    font-size:14px;
+    cursor:pointer;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="app-header">
+    <div>
+      <h1>左手 稽古帖</h1>
+      <span class="sub">ひとり稽古・絵のウォームアップ</span>
+    </div>
+    <button class="icon-btn" id="settingsBtn" aria-label="設定を開く">⚙</button>
+  </header>
+
+  <!-- 大カテゴリ切り替え -->
+  <div class="view-switcher">
+    <button class="view-btn active" id="viewDrawBtn">✍ 描画稽古</button>
+    <button class="view-btn" id="viewQuizBtn">📐 パース問答（一問一答）</button>
+  </div>
+
+  <!-- 【描画稽古セクション】 -->
+  <div id="drawSection">
+    <nav class="tabs" role="tablist" aria-label="練習の種類">
+      <button class="tab" role="tab" data-mode="straight" aria-selected="true">直線</button>
+      <button class="tab" role="tab" data-mode="curve" aria-selected="false">曲線</button>
+      <button class="tab" role="tab" data-mode="circle" aria-selected="false">円</button>
+      <button class="tab" role="tab" data-mode="spiral" aria-selected="false">渦巻</button>
+      <button class="tab" role="tab" data-mode="box" aria-selected="false">直方体</button>
+      <button class="tab" role="tab" data-mode="cylinder" aria-selected="false">円柱</button>
+      <button class="tab" role="tab" data-mode="free" aria-selected="false">素振り</button>
+    </nav>
+  </div>
+
+  <!-- キャンバス（共通） -->
+  <section class="sheet">
+    <div class="canvas-wrap">
+      <canvas id="cv"></canvas>
+    </div>
+  </section>
+
+  <!-- 描画稽古用リード＆結果 -->
+  <div id="drawControls">
+    <section class="lead-row" id="leadRow">
+      <p class="lead-text" id="leadText">始点から終点まで、まっすぐに引いてみよう</p>
+      <div class="multi-actions" id="multiActions" hidden>
+        <button class="btn btn-ghost btn-sm" id="undoStrokeBtn">1画戻す</button>
+        <button class="btn btn-primary btn-sm" id="submitMultiBtn">採点する</button>
+      </div>
+    </section>
+
+    <section class="result-row" id="resultRow" hidden aria-live="polite">
+      <div class="stamp tier-good" id="stampMark">◎</div>
+      <div class="result-text">
+        <div class="score-num"><span id="scoreNum">0</span><span class="score-suffix">点</span></div>
+        <div class="score-sub">
+          <span id="subAccuracy">線のブレ 0</span>
+          <span id="subCoverage">なぞれた範囲 0%</span>
+        </div>
+      </div>
+      <div class="result-actions">
+        <button class="btn btn-ghost" id="retryBtn">やり直す</button>
+        <button class="btn btn-primary" id="nextBtn">次へ</button>
+      </div>
+    </section>
+
+    <section class="progress-row">
+      <div class="progress-label" id="progressLabel">直線 0/50本</div>
+      <div class="stamps" id="stampTrack"></div>
+    </section>
+
+    <section class="stats-row">
+      <div class="stat-chip">今日 <strong id="todayCount">0</strong>本</div>
+      <div class="stat-chip">連続 <strong id="streakCount">0</strong>日目</div>
+    </section>
+  </div>
+
+  <!-- 【パース問答（一問一答）セクション】 -->
+  <div id="quizSection" hidden>
+    <div class="quiz-box">
+      <span class="quiz-q-tag" id="quizCategoryTag">問 1 ・ アイレベル当て</span>
+      <h2 class="quiz-q-title" id="quizQuestionText">この立体の「アイレベル（目の高さ）」はどれ？</h2>
+      
+      <div class="quiz-options" id="quizOptionsWrap"></div>
+
+      <div class="quiz-feedback" id="quizFeedbackWrap" hidden>
+        <div class="quiz-feedback-banner">
+          <span class="quiz-badge" id="quizBadge">◎</span>
+          <strong id="quizResultText" style="font-size:16px;">正解！</strong>
+        </div>
+        <p class="quiz-explain" id="quizExplainText"></p>
+        <button class="btn btn-primary" id="quizNextBtn" style="width:100%;">次の一問へ</button>
+      </div>
+
+      <div class="stats-row" style="margin-top:16px;">
+        <div class="stat-chip">問答正解数 <strong id="quizCorrectStat">0</strong>問</div>
+        <div class="stat-chip">正答率 <strong id="quizRateStat">0%</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <p class="tip" id="appTipText">Safariの共有ボタンから「ホーム画面に追加」しておくと、全画面アプリとして開けます。</p>
+</div>
+
+<!-- 設定モーダル -->
+<div class="overlay" id="overlay" hidden>
+  <div class="settings-panel">
+    <h2>設定</h2>
+
+    <div class="settings-block">
+      <div class="settings-block-label">今日の目標本数（描画稽古）</div>
+      <div class="target-grid">
+        <label class="target-item"><span>直線</span><input type="number" id="tg-straight" min="5" max="300" step="5"></label>
+        <label class="target-item"><span>曲線</span><input type="number" id="tg-curve" min="5" max="300" step="5"></label>
+        <label class="target-item"><span>円</span><input type="number" id="tg-circle" min="5" max="300" step="5"></label>
+        <label class="target-item"><span>渦巻</span><input type="number" id="tg-spiral" min="5" max="300" step="5"></label>
+        <label class="target-item"><span>直方体</span><input type="number" id="tg-box" min="5" max="300" step="5"></label>
+        <label class="target-item"><span>円柱</span><input type="number" id="tg-cylinder" min="5" max="300" step="5"></label>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <div class="switch-row">
+        <div>
+          <div class="settings-block-label" style="margin-bottom:2px;">お手本をだんだん薄くする</div>
+          <div class="settings-block-desc" style="margin:0;">見て描き写すより、覚えて動かす練習になります</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" id="fadeToggle">
+          <span class="track"><span class="thumb"></span></span>
+        </label>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <div class="settings-block-label">むずかしさ（描画判定）</div>
+      <div class="settings-block-desc">線のズレの許容度です。まずは「ふつう」がおすすめです</div>
+      <div class="seg" id="difficultySeg">
+        <button data-val="easy" aria-pressed="false">やさしい</button>
+        <button data-val="normal" aria-pressed="true">ふつう</button>
+        <button data-val="hard" aria-pressed="false">むずかしい</button>
+      </div>
+    </div>
+
+    <div class="settings-block">
+      <button class="danger-btn" id="resetTodayBtn">今日の記録をリセット</button>
+    </div>
+
+    <div class="close-row">
+      <button class="close-btn" id="closeSettingsBtn">閉じる</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- 状態・保存 ----------
+  var STORAGE_KEY = "hidariteKeikochou_v4";
+  var settings = {
+    targets: { straight:50, curve:40, circle:30, spiral:20, box:20, cylinder:20, free:30 },
+    fadeEnabled: false,
+    difficulty: "normal"
+  };
+  var history = {};
+  var quizStats = { total:0, correct:0 };
+
+  function loadState(){
+    try{
+      var raw = window.localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        var parsed = JSON.parse(raw);
+        if(parsed && parsed.settings){
+          settings.targets = Object.assign({}, settings.targets, parsed.settings.targets||{});
+          settings.fadeEnabled = !!parsed.settings.fadeEnabled;
+          settings.difficulty = parsed.settings.difficulty || "normal";
+        }
+        if(parsed && parsed.history) history = parsed.history;
+        if(parsed && parsed.quizStats) quizStats = parsed.quizStats;
+      }
+    }catch(e){}
+  }
+  function saveState(){
+    try{
+      window.localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        settings: settings,
+        history: history,
+        quizStats: quizStats
+      }));
+    }catch(e){}
+  }
+
+  function pad2(n){ return n<10 ? "0"+n : ""+n; }
+  function todayKey(){
+    var d = new Date();
+    return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+  }
+  function totalFor(key){
+    var rec = history[key];
+    if(!rec) return 0;
+    var sum = 0;
+    for(var k in rec){ if(Object.prototype.hasOwnProperty.call(rec,k)) sum += rec[k]; }
+    return sum;
+  }
+  function countFor(key, m){
+    var rec = history[key];
+    if(!rec) return 0;
+    return rec[m] || 0;
+  }
+  function incrementRep(m){
+    var key = todayKey();
+    if(!history[key]) history[key] = { straight:0, curve:0, circle:0, spiral:0, box:0, cylinder:0, free:0 };
+    history[key][m] = (history[key][m]||0) + 1;
+    saveState();
+    updateProgressUI();
+    updateStatsUI();
+  }
+  function computeStreak(){
+    var key = todayKey();
+    var streak = 0;
+    var d = new Date();
+    if(totalFor(key) > 0){ streak = 1; }
+    d.setDate(d.getDate()-1);
+    while(true){
+      var k = d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate());
+      if(totalFor(k) > 0){ streak++; d.setDate(d.getDate()-1); }
+      else break;
+      if(streak > 3650) break;
+    }
+    return streak;
+  }
+
+  // ---------- DOM ----------
+  var canvas = document.getElementById("cv");
+  var ctx = canvas.getContext("2d");
+  var wrap = canvas.parentElement;
+
+  var viewDrawBtn = document.getElementById("viewDrawBtn");
+  var viewQuizBtn = document.getElementById("viewQuizBtn");
+  var drawSection = document.getElementById("drawSection");
+  var drawControls = document.getElementById("drawControls");
+  var quizSection = document.getElementById("quizSection");
+  var appTipText = document.getElementById("appTipText");
+
+  var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
+  var leadText = document.getElementById("leadText");
+  var multiActions = document.getElementById("multiActions");
+  var undoStrokeBtn = document.getElementById("undoStrokeBtn");
+  var submitMultiBtn = document.getElementById("submitMultiBtn");
+  var resultRow = document.getElementById("resultRow");
+  var stampMark = document.getElementById("stampMark");
+  var scoreNum = document.getElementById("scoreNum");
+  var subAccuracy = document.getElementById("subAccuracy");
+  var subCoverage = document.getElementById("subCoverage");
+  var retryBtn = document.getElementById("retryBtn");
+  var nextBtn = document.getElementById("nextBtn");
+  var progressLabel = document.getElementById("progressLabel");
+  var stampTrack = document.getElementById("stampTrack");
+  var todayCountEl = document.getElementById("todayCount");
+  var streakCountEl = document.getElementById("streakCount");
+
+  var quizCategoryTag = document.getElementById("quizCategoryTag");
+  var quizQuestionText = document.getElementById("quizQuestionText");
+  var quizOptionsWrap = document.getElementById("quizOptionsWrap");
+  var quizFeedbackWrap = document.getElementById("quizFeedbackWrap");
+  var quizBadge = document.getElementById("quizBadge");
+  var quizResultText = document.getElementById("quizResultText");
+  var quizExplainText = document.getElementById("quizExplainText");
+  var quizNextBtn = document.getElementById("quizNextBtn");
+  var quizCorrectStat = document.getElementById("quizCorrectStat");
+  var quizRateStat = document.getElementById("quizRateStat");
+
+  var settingsBtn = document.getElementById("settingsBtn");
+  var overlay = document.getElementById("overlay");
+  var closeSettingsBtn = document.getElementById("closeSettingsBtn");
+  var resetTodayBtn = document.getElementById("resetTodayBtn");
+  var fadeToggle = document.getElementById("fadeToggle");
+  var difficultySeg = document.getElementById("difficultySeg");
+  var targetInputs = {
+    straight: document.getElementById("tg-straight"),
+    curve: document.getElementById("tg-curve"),
+    circle: document.getElementById("tg-circle"),
+    spiral: document.getElementById("tg-spiral"),
+    box: document.getElementById("tg-box"),
+    cylinder: document.getElementById("tg-cylinder")
+  };
+
+  var currentView = "draw"; // "draw" or "quiz"
+  var MODE_LABEL = {
+    straight:"直線", curve:"曲線", circle:"円", spiral:"渦巻",
+    box:"直方体", cylinder:"円柱", free:"素振り"
+  };
+  var LEAD_TEXT = {
+    straight:"始点から終点まで、まっすぐに引いてみよう",
+    curve:"腕全体を大きく使って、流れるような曲線を引こう",
+    circle:"手首を固めず、肩とひじで一筆で丸く",
+    spiral:"回転と傾きを意識して、外側へ広げよう",
+    box:"アタリの基本。面の向きとパースの収束を意識して形をとろう",
+    cylinder:"上下の楕円の丸みの変化と、側面のパースを意識しよう",
+    free:"ガイドなし。画面いっぱいに腕を振って脱力しよう"
+  };
+
+  // ---------- 描画キャンバス状態 ----------
+  var mode = "straight";
+  var W = 0, H = 0, dpr = 1;
+  var guide = null;
+  var guideOpacity = 1;
+  var fadeRAF = null;
+  var isDrawing = false;
+  var currentPoints = [];
+  var accumulatedStrokes = [];
+  var scoredStrokes = null;
+  var lastFreeStroke = null;
+  var renderQueued = false;
+  var multiStrokeTimer = null;
+
+  // ---------- 3D Projection Functions ----------
+  function cssVar(name){
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  function rotatePoint(p, pitch, yaw, roll){
+    var cy = Math.cos(yaw), sy = Math.sin(yaw);
+    var x1 = p.x * cy + p.z * sy;
+    var y1 = p.y;
+    var z1 = -p.x * sy + p.z * cy;
+
+    var cp = Math.cos(pitch), sp = Math.sin(pitch);
+    var x2 = x1;
+    var y2 = y1 * cp - z1 * sp;
+    var z2 = y1 * sp + z1 * cp;
+
+    var cr = Math.cos(roll), sr = Math.sin(roll);
+    var x3 = x2 * cr - y2 * sr;
+    var y3 = x2 * sr + y2 * cr;
+    var z3 = z2;
+    return { x: x3, y: y3, z: z3 };
+  }
+
+  function projectPoint(p, camDist, fovScale){
+    var zDist = camDist - p.z;
+    if(zDist < 1) zDist = 1;
+    var s = fovScale / zDist;
+    return { x: p.x * s, y: -p.y * s, z: p.z };
+  }
+
+  function sampleSegment(p1, p2, count){
+    var pts = [];
+    for(var i=0; i<=count; i++){
+      var t = i / count;
+      pts.push({ x: p1.x + (p2.x - p1.x)*t, y: p1.y + (p2.y - p1.y)*t });
+    }
+    return pts;
+  }
+
+  function fitPointsInBounds(pts, margin, keyPoints){
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for(var i=0; i<pts.length; i++){
+      if(pts[i].x < minX) minX = pts[i].x;
+      if(pts[i].x > maxX) maxX = pts[i].x;
+      if(pts[i].y < minY) minY = pts[i].y;
+      if(pts[i].y > maxY) maxY = pts[i].y;
+    }
+    var curW = maxX - minX || 1;
+    var curH = maxY - minY || 1;
+    var targetW = W - margin * 2;
+    var targetH = H - margin * 2;
+    var scale = Math.min(targetW / curW, targetH / curH);
+
+    var curCx = (minX + maxX) / 2;
+    var curCy = (minY + maxY) / 2;
+    var targetCx = W / 2;
+    var targetCy = H / 2;
+
+    for(var j=0; j<pts.length; j++){
+      pts[j].x = targetCx + (pts[j].x - curCx) * scale;
+      pts[j].y = targetCy + (pts[j].y - curCy) * scale;
+    }
+    if(keyPoints){
+      for(var k=0; k<keyPoints.length; k++){
+        keyPoints[k].x = targetCx + (keyPoints[k].x - curCx) * scale;
+        keyPoints[k].y = targetCy + (keyPoints[k].y - curCy) * scale;
+      }
+    }
+    return { scale: scale, targetCx: targetCx, targetCy: targetCy, curCx: curCx, curCy: curCy };
+  }
+
+  // ---------- ウォーミングアップ用生成関数 ----------
+  function genStraight(){
+    var margin = Math.min(W,H)*0.16;
+    var angle = Math.random()*Math.PI;
+    var len = Math.min(W,H)*(0.65 + Math.random()*0.22);
+    var cx = W/2, cy = H/2;
+    var dx = Math.cos(angle)*len/2, dy = Math.sin(angle)*len/2;
+    var p1 = { x: cx-dx, y: cy-dy };
+    var p2 = { x: cx+dx, y: cy+dy };
+    var pts = sampleSegment(p1, p2, 220);
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
+  }
+
+  function genCurve(){
+    var margin = Math.min(W,H)*0.14;
+    var len = Math.min(W,H)*(0.85 + Math.random()*0.25);
+    var angle = Math.random()*Math.PI*2;
+    var isSCurve = Math.random() < 0.45;
+
+    var cx = W/2, cy = H/2;
+    var dx = Math.cos(angle)*(len/2), dy = Math.sin(angle)*(len/2);
+    var x1 = cx - dx, y1 = cy - dy;
+    var x2 = cx + dx, y2 = cy + dy;
+    var nx = -Math.sin(angle), ny = Math.cos(angle);
+
+    var N = 240, pts = [];
+    if(!isSCurve){
+      var bend = len * (0.28 + Math.random()*0.22) * (Math.random()<0.5 ? 1 : -1);
+      var cpX = cx + nx * bend;
+      var cpY = cy + ny * bend;
+      for(var i=0; i<=N; i++){
+        var t=i/N, mt=1-t;
+        pts.push({
+          x: mt*mt*x1 + 2*mt*t*cpX + t*t*x2,
+          y: mt*mt*y1 + 2*mt*t*cpY + t*t*y2
+        });
+      }
+    } else {
+      var side = Math.random()<0.5 ? 1 : -1;
+      var bend1 = len * (0.24 + Math.random()*0.18) * side;
+      var bend2 = -len * (0.24 + Math.random()*0.18) * side;
+      var cp1X = x1 + (x2-x1)*0.32 + nx*bend1;
+      var cp1Y = y1 + (y2-y1)*0.32 + ny*bend1;
+      var cp2X = x1 + (x2-x1)*0.68 + nx*bend2;
+      var cp2Y = y1 + (y2-y1)*0.68 + ny*bend2;
+      for(var j=0; j<=N; j++){
+        var s=j/N, ms=1-s;
+        pts.push({
+          x: ms*ms*ms*x1 + 3*ms*ms*s*cp1X + 3*ms*s*s*cp2X + s*s*s*x2,
+          y: ms*ms*ms*y1 + 3*ms*ms*s*cp1Y + 3*ms*s*s*cp2Y + s*s*s*y2
+        });
+      }
+    }
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
+  }
+
+  function genCircle(){
+    var margin = Math.min(W,H)*0.18;
+    var r = Math.min(W,H)*0.34;
+    var cx = W/2, cy = H/2;
+    var N=240, pts=[];
+    var start = -Math.PI/2;
+    for(var i=0; i<=N; i++){
+      var t=i/N, a=start + t*Math.PI*2;
+      pts.push({ x: cx+Math.cos(a)*r, y: cy+Math.sin(a)*r });
+    }
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
+  }
+
+  function genSpiral(){
+    var margin = Math.min(W, H) * 0.15;
+    var turns = 2.0 + Math.random() * 1.5;
+    var dir = Math.random() < 0.5 ? 1 : -1;
+    var startAngle = Math.random() * Math.PI * 2;
+    var maxR = Math.min(W, H) * 0.42;
+    var minR = maxR * (0.05 + Math.random() * 0.08);
+    var aspect = 0.78 + Math.random() * 0.44;
+    var tilt = Math.random() * Math.PI;
+
+    var N = 260, pts = [];
+    for(var i = 0; i <= N; i++){
+      var t = i / N;
+      var a = startAngle + dir * t * turns * Math.PI * 2;
+      var r = minR + (maxR - minR) * t;
+      var ex = Math.cos(a) * r;
+      var ey = Math.sin(a) * r * aspect;
+      var rx = ex * Math.cos(tilt) - ey * Math.sin(tilt);
+      var ry = ex * Math.sin(tilt) + ey * Math.cos(tilt);
+      pts.push({ x: W / 2 + rx, y: H / 2 + ry });
+    }
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
+  }
+
+  function genBox(){
+    var margin = Math.min(W,H)*0.16;
+    var camDist = 320, fovScale = 320;
+    var bW = 120 + Math.random()*40;
+    var bH = 120 + Math.random()*50;
+    var bD = 120 + Math.random()*40;
+    var isBirdEye = Math.random() < 0.75;
+    var pitch = isBirdEye ? (0.30 + Math.random()*0.20) : -(0.28 + Math.random()*0.16);
+    var yawSign = Math.random() < 0.5 ? 1 : -1;
+    var yaw = yawSign * (0.55 + Math.random()*0.35);
+    var roll = (Math.random() - 0.5) * 0.08;
+
+    var hw = bW/2, hh = bH/2, hd = bD/2;
+    var vLocal = [
+      {x:-hw, y:-hh, z:-hd}, {x: hw, y:-hh, z:-hd},
+      {x: hw, y: hh, z:-hd}, {x:-hw, y: hh, z:-hd},
+      {x:-hw, y:-hh, z: hd}, {x: hw, y:-hh, z: hd},
+      {x: hw, y: hh, z: hd}, {x:-hw, y: hh, z: hd}
+    ];
+
+    var faces = [
+      { v:[3,2,6,7], n:{x:0, y:1, z:0}, c:{x:0, y:hh, z:0} },
+      { v:[0,4,5,1], n:{x:0, y:-1, z:0}, c:{x:0, y:-hh, z:0} },
+      { v:[4,5,6,7], n:{x:0, y:0, z:1}, c:{x:0, y:0, z:hd} },
+      { v:[1,0,3,2], n:{x:0, y:0, z:-1}, c:{x:0, y:0, z:-hd} },
+      { v:[5,1,2,6], n:{x:1, y:0, z:0}, c:{x:hw, y:0, z:0} },
+      { v:[0,4,7,3], n:{x:-1, y:0, z:0}, c:{x:-hw, y:0, z:0} }
+    ];
+
+    var edgeMap = {};
+    for(var f=0; f<faces.length; f++){
+      var fc = faces[f];
+      var rc = rotatePoint(fc.c, pitch, yaw, roll);
+      var rn = rotatePoint(fc.n, pitch, yaw, roll);
+      var vCam = { x: -rc.x, y: -rc.y, z: camDist - rc.z };
+      var dot = rn.x*vCam.x + rn.y*vCam.y + rn.z*vCam.z;
+      if(dot > 0){
+        for(var e=0; e<4; e++){
+          var u = fc.v[e];
+          var v = fc.v[(e+1)%4];
+          var key = Math.min(u,v) + "_" + Math.max(u,v);
+          edgeMap[key] = [u, v];
+        }
+      }
+    }
+
+    var v2d = new Array(8);
+    for(var vi=0; vi<8; vi++){
+      var rotV = rotatePoint(vLocal[vi], pitch, yaw, roll);
+      v2d[vi] = projectPoint(rotV, camDist, fovScale);
+    }
+
+    var paths = [];
+    var allPts = [];
+    var keyPointsMap = {};
+    var edgeKeys = Object.keys(edgeMap);
+
+    for(var k=0; k<edgeKeys.length; k++){
+      var pair = edgeMap[edgeKeys[k]];
+      var pA = v2d[pair[0]], pB = v2d[pair[1]];
+      keyPointsMap[pair[0]] = pA;
+      keyPointsMap[pair[1]] = pB;
+      var seg = sampleSegment(pA, pB, 26);
+      paths.push(seg);
+      for(var s=0; s<seg.length; s++) allPts.push(seg[s]);
+    }
+
+    var keyPoints = [];
+    var kpKeys = Object.keys(keyPointsMap);
+    for(var ki=0; ki<kpKeys.length; ki++){
+      keyPoints.push(keyPointsMap[kpKeys[ki]]);
+    }
+
+    fitPointsInBounds(allPts, margin, keyPoints);
+    return { points: allPts, paths: paths, keyPoints: keyPoints };
+  }
+
+  function genCylinder(){
+    var margin = Math.min(W,H)*0.16;
+    var camDist = 320, fovScale = 320;
+    var R = 60 + Math.random()*20;
+    var cylH = 130 + Math.random()*50;
+    var isBirdEye = Math.random() < 0.75;
+    var pitch = isBirdEye ? (0.32 + Math.random()*0.20) : -(0.30 + Math.random()*0.16);
+    var yaw = (Math.random() - 0.5) * 0.4;
+    var roll = (Math.random() - 0.5) * 0.08;
+
+    var topC = rotatePoint({x:0, y:cylH/2, z:0}, pitch, yaw, roll);
+    var topN = rotatePoint({x:0, y:1, z:0}, pitch, yaw, roll);
+    var vTop = { x: -topC.x, y: -topC.y, z: camDist - topC.z };
+    var dotTop = topN.x*vTop.x + topN.y*vTop.y + topN.z*vTop.z;
+
+    var N = 120;
+    var ptsTop3D = new Array(N);
+    var ptsBot3D = new Array(N);
+    var visibleSide = new Array(N);
+
+    for(var i=0; i<N; i++){
+      var a = i * (Math.PI*2 / N);
+      var cosA = Math.cos(a), sinA = Math.sin(a);
+      var pT = rotatePoint({x: R*cosA, y: cylH/2, z: R*sinA}, pitch, yaw, roll);
+      var pB = rotatePoint({x: R*cosA, y: -cylH/2, z: R*sinA}, pitch, yaw, roll);
+      var pM = rotatePoint({x: R*cosA, y: 0, z: R*sinA}, pitch, yaw, roll);
+      var norm = rotatePoint({x: cosA, y: 0, z: sinA}, pitch, yaw, roll);
+
+      var vCam = { x: -pM.x, y: -pM.y, z: camDist - pM.z };
+      var dSide = norm.x*vCam.x + norm.y*vCam.y + norm.z*vCam.z;
+
+      ptsTop3D[i] = pT;
+      ptsBot3D[i] = pB;
+      visibleSide[i] = dSide > 0;
+    }
+
+    var i1 = -1, i2 = -1;
+    for(var j=0; j<N; j++){
+      var prev = (j - 1 + N) % N;
+      var next = (j + 1) % N;
+      if(!visibleSide[prev] && visibleSide[j]) i1 = j;
+      if(visibleSide[j] && !visibleSide[next]) i2 = j;
+    }
+    if(i1 === -1 || i2 === -1){
+      i1 = Math.round(N * 0.25);
+      i2 = Math.round(N * 0.75);
+    }
+
+    var p2dTop = new Array(N);
+    var p2dBot = new Array(N);
+    for(var k=0; k<N; k++){
+      p2dTop[k] = projectPoint(ptsTop3D[k], camDist, fovScale);
+      p2dBot[k] = projectPoint(ptsBot3D[k], camDist, fovScale);
+    }
+
+    var paths = [];
+    var allPts = [];
+
+    var fullLoop = [];
+    var fullPts2D = (dotTop > 0) ? p2dTop : p2dBot;
+    for(var f=0; f<=N; f++){
+      fullLoop.push({ x: fullPts2D[f % N].x, y: fullPts2D[f % N].y });
+    }
+    paths.push(fullLoop);
+
+    var arcLoop = [];
+    var arcPts2D = (dotTop > 0) ? p2dBot : p2dTop;
+    var idx = i1;
+    while(true){
+      arcLoop.push({ x: arcPts2D[idx].x, y: arcPts2D[idx].y });
+      if(idx === i2) break;
+      idx = (idx + 1) % N;
+    }
+    paths.push(arcLoop);
+
+    var side1 = sampleSegment(p2dTop[i1], p2dBot[i1], 28);
+    var side2 = sampleSegment(p2dTop[i2], p2dBot[i2], 28);
+    paths.push(side1);
+    paths.push(side2);
+
+    for(var p=0; p<paths.length; p++){
+      for(var q=0; q<paths[p].length; q++) allPts.push(paths[p][q]);
+    }
+
+    fitPointsInBounds(allPts, margin);
+    return { points: allPts, paths: paths };
+  }
+
+  var GENERATORS = {
+    straight: genStraight,
+    curve: genCurve,
+    circle: genCircle,
+    spiral: genSpiral,
+    box: genBox,
+    cylinder: genCylinder
+  };
+
+  function isMultiMode(){
+    return mode === "box" || mode === "cylinder";
+  }
+
+  function getThresholdFactors(){
+    var table = {
+      easy:   { covF:0.075, kF:0.085 },
+      normal: { covF:0.050, kF:0.055 },
+      hard:   { covF:0.032, kF:0.035 }
+    };
+    return table[settings.difficulty] || table.normal;
+  }
+
+  function handleScoreStrokes(strokesArray){
+    if(!guide || !guide.points || guide.points.length === 0) return;
+    var guidePts = guide.points;
+    var allUserPts = [];
+    var i, s;
+
+    for(s=0; s<strokesArray.length; s++){
+      for(i=0; i<strokesArray[s].length; i++){
+        allUserPts.push(strokesArray[s][i]);
+      }
+    }
+    if(allUserPts.length < 2) return;
+
+    var sumDev = 0;
+    var scored = [];
+    var f = getThresholdFactors();
+    var k = Math.min(W,H)*f.kF;
+    var goodTh = k*0.6;
+    var midTh = k*1.45;
+
+    for(s=0; s<strokesArray.length; s++){
+      var strk = strokesArray[s];
+      var devs = new Array(strk.length);
+      for(i=0; i<strk.length; i++){
+        var minD = Infinity;
+        for(var j=0; j<guidePts.length; j++){
+          var dx = strk[i].x - guidePts[j].x;
+          var dy = strk[i].y - guidePts[j].y;
+          var d = dx*dx + dy*dy;
+          if(d < minD) minD = d;
+        }
+        var dist = Math.sqrt(minD);
+        devs[i] = dist;
+        sumDev += dist;
+      }
+      scored.push({ points: strk, devs: devs, goodThresh: goodTh, midThresh: midTh });
+    }
+
+    var avgDev = sumDev / allUserPts.length;
+    var covThresh = Math.min(W,H)*f.covF;
+    var covered = 0;
+
+    for(var g=0; g<guidePts.length; g++){
+      var minGD = Infinity;
+      for(var u=0; u<allUserPts.length; u++){
+        var gdx = guidePts[g].x - allUserPts[u].x;
+        var gdy = guidePts[g].y - allUserPts[u].y;
+        var gd = gdx*gdx + gdy*gdy;
+        if(gd < minGD) minGD = gd;
+      }
+      if(Math.sqrt(minGD) < covThresh) covered++;
+    }
+
+    var coverageRatio = covered / guidePts.length;
+    var accuracyScore = Math.round(100 * Math.exp(-avgDev / k));
+    var coverageScore = Math.round(coverageRatio * 100);
+    var overall = Math.round(accuracyScore*0.65 + coverageScore*0.35);
+
+    scoredStrokes = scored;
+    accumulatedStrokes = [];
+    multiActions.hidden = true;
+    incrementRep(mode);
+    showResult(overall, accuracyScore, coverageScore);
+    requestRender();
+  }
+
+  function handleFreeStrokeComplete(points){
+    var len = 0;
+    for(var i=1; i<points.length; i++){
+      len += Math.hypot(points[i].x - points[i-1].x, points[i].y - points[i-1].y);
+    }
+    if(len < 18) return;
+    lastFreeStroke = points;
+    incrementRep("free");
+    requestRender();
+  }
+
+  function showResult(overall, accuracyScore, coverageScore){
+    resultRow.hidden = false;
+    resultRow.style.display = "flex";
+    scoreNum.textContent = overall;
+    subAccuracy.textContent = "線のブレ " + accuracyScore;
+    subCoverage.textContent = "なぞれた範囲 " + coverageScore + "%";
+
+    stampMark.classList.remove("tier-good","tier-ok","tier-retry","pop");
+    var mark, tier;
+    if(overall >= 90){ mark="◎"; tier="tier-good"; }
+    else if(overall >= 65){ mark="○"; tier="tier-ok"; }
+    else { mark="△"; tier="tier-retry"; }
+    stampMark.textContent = mark;
+    stampMark.classList.add(tier);
+    void stampMark.offsetWidth;
+    stampMark.classList.add("pop");
+  }
+
+  function hideResult(){
+    resultRow.hidden = true;
+    resultRow.style.display = "none";
+  }
+
+  // ---------- クイズ（パース問答）ロジック ----------
+  var quizState = {
+    type: "eye_level", // "eye_level", "angle", "vp"
+    answered: false,
+    selected: null,
+    boxData: null,
+    options: [],
+    correctIndex: 0,
+    explain: ""
+  };
+
+  // 2直線の交点を計算
+  function lineIntersection(p1, p2, p3, p4){
+    var x1=p1.x, y1=p1.y, x2=p2.x, y2=p2.y;
+    var x3=p3.x, y3=p3.y, x4=p4.x, y4=p4.y;
+    var denom = (x1-x2)*(y3-y4) - (y1-y2)*(x3-x4);
+    if(Math.abs(denom) < 1e-5) return null;
+    var t = ((x1-x3)*(y3-y4) - (y1-y3)*(x3-x4)) / denom;
+    return { x: x1 + t*(x2-x1), y: y1 + t*(y2-y1) };
+  }
+
+  function generateQuizBox(){
+    var margin = Math.min(W,H)*0.20;
+    var camDist = 320, fovScale = 320;
+    var bW = 110 + Math.random()*30;
+    var bH = 110 + Math.random()*30;
+    var bD = 110 + Math.random()*30;
+
+    // アオリ・フカン・水平の配分
+    var rType = Math.random();
+    var pitch, angleType;
+    if(rType < 0.45){
+      pitch = 0.28 + Math.random()*0.18; // フカン（見下ろし）
+      angleType = "bird";
+    } else if(rType < 0.90){
+      pitch = -(0.25 + Math.random()*0.18); // アオリ（見上げ）
+      angleType = "worm";
+    } else {
+      pitch = (Math.random() - 0.5) * 0.05; // ほぼ水平（正面）
+      angleType = "level";
+    }
+
+    var yaw = (Math.random() < 0.5 ? 1 : -1) * (0.60 + Math.random()*0.25);
+    var roll = 0; // 水平線を綺麗に見せるためロールは0
+
+    var hw = bW/2, hh = bH/2, hd = bD/2;
+    var vLocal = [
+      {x:-hw, y:-hh, z:-hd}, {x: hw, y:-hh, z:-hd},
+      {x: hw, y: hh, z:-hd}, {x:-hw, y: hh, z:-hd},
+      {x:-hw, y:-hh, z: hd}, {x: hw, y:-hh, z: hd},
+      {x: hw, y: hh, z: hd}, {x:-hw, y: hh, z: hd}
+    ];
+
+    var faces = [
+      { id:"top", v:[3,2,6,7], n:{x:0, y:1, z:0}, c:{x:0, y:hh, z:0} },
+      { id:"bottom", v:[0,4,5,1], n:{x:0, y:-1, z:0}, c:{x:0, y:-hh, z:0} },
+      { id:"front", v:[4,5,6,7], n:{x:0, y:0, z:1}, c:{x:0, y:0, z:hd} },
+      { id:"back", v:[1,0,3,2], n:{x:0, y:0, z:-1}, c:{x:0, y:0, z:-hd} },
+      { id:"right", v:[5,1,2,6], n:{x:1, y:0, z:0}, c:{x:hw, y:0, z:0} },
+      { id:"left", v:[0,4,7,3], n:{x:-1, y:0, z:0}, c:{x:-hw, y:0, z:0} }
+    ];
+
+    var visibleFaces = {};
+    for(var f=0; f<faces.length; f++){
+      var fc = faces[f];
+      var rc = rotatePoint(fc.c, pitch, yaw, roll);
+      var rn = rotatePoint(fc.n, pitch, yaw, roll);
+      var vCam = { x: -rc.x, y: -rc.y, z: camDist - rc.z };
+      var dot = rn.x*vCam.x + rn.y*vCam.y + rn.z*vCam.z;
+      if(dot > 0) visibleFaces[fc.id] = true;
+    }
+
+    var v2d = new Array(8);
+    for(var vi=0; vi<8; vi++){
+      var rotV = rotatePoint(vLocal[vi], pitch, yaw, roll);
+      v2d[vi] = projectPoint(rotV, camDist, fovScale);
+    }
+
+    // スクリーン上への配置フィット
+    var fitPts = [];
+    for(var i=0; i<8; i++) fitPts.push({ x:v2d[i].x, y:v2d[i].y });
+    var tInfo = fitPointsInBounds(fitPts, margin);
+
+    for(var j=0; j<8; j++){
+      v2d[j].x = fitPts[j].x;
+      v2d[j].y = fitPts[j].y;
+    }
+
+    // 消失点とアイレベルを幾何学的に正確に算出
+    // 稜線 7-6 と 4-5（または3-2と0-1）の交差がVP1
+    var vp1 = lineIntersection(v2d[7], v2d[6], v2d[4], v2d[5]) || lineIntersection(v2d[3], v2d[2], v2d[0], v2d[1]);
+    // 稜線 7-3 と 6-2（または4-0と5-1）の交差がVP2
+    var vp2 = lineIntersection(v2d[7], v2d[3], v2d[6], v2d[2]) || lineIntersection(v2d[4], v2d[0], v2d[5], v2d[1]);
+
+    var eyeLevelY = H / 2;
+    if(vp1 && vp2){
+      eyeLevelY = (vp1.y + vp2.y) / 2;
+    } else if(vp1){
+      eyeLevelY = vp1.y;
+    } else if(vp2){
+      eyeLevelY = vp2.y;
+    } else {
+      eyeLevelY = H/2 - fovScale * Math.tan(pitch) * tInfo.scale;
+    }
+
+    // 稜線の結線情報
+    var edges = [
+      [3,2],[2,6],[6,7],[7,3],
+      [0,1],[1,5],[5,4],[4,0],
+      [3,0],[2,1],[6,5],[7,4]
+    ];
+    var visibleEdges = [];
+    var edgeUsed = {};
+    for(var ff=0; ff<faces.length; ff++){
+      if(visibleFaces[faces[ff].id]){
+        var vList = faces[ff].v;
+        for(var e=0; e<4; e++){
+          var u = vList[e], v = vList[(e+1)%4];
+          var eKey = Math.min(u,v) + "_" + Math.max(u,v);
+          if(!edgeUsed[eKey]){
+            edgeUsed[eKey] = true;
+            visibleEdges.push([u, v]);
+          }
+        }
+      }
+    }
+
+    return {
+      v2d: v2d,
+      visibleEdges: visibleEdges,
+      visibleFaces: visibleFaces,
+      angleType: angleType,
+      eyeLevelY: eyeLevelY,
+      vp1: vp1,
+      vp2: vp2
+    };
+  }
+
+  function startNewQuiz(){
+    quizState.answered = false;
+    quizState.selected = null;
+    quizFeedbackWrap.hidden = true;
+    quizOptionsWrap.innerHTML = "";
+
+    var types = ["eye_level", "angle", "vp"];
+    quizState.type = types[Math.floor(Math.random() * types.length)];
+    var box = generateQuizBox();
+    quizState.boxData = box;
+
+    if(quizState.type === "eye_level"){
+      quizCategoryTag.textContent = "問・アイレベル（目線の高さ）当て";
+      quizQuestionText.textContent = "この直方体の【アイレベル（目の高さ）】を示す線はどれ？";
+
+      var correctY = box.eyeLevelY;
+      var dummy1Y, dummy2Y;
+      if(box.angleType === "bird"){
+        dummy1Y = correctY + Math.min(W,H)*0.32;
+        dummy2Y = correctY + Math.min(W,H)*0.55;
+      } else if(box.angleType === "worm"){
+        dummy1Y = correctY - Math.min(W,H)*0.32;
+        dummy2Y = correctY - Math.min(W,H)*0.55;
+      } else {
+        dummy1Y = correctY - Math.min(W,H)*0.28;
+        dummy2Y = correctY + Math.min(W,H)*0.28;
+      }
+
+      var lines = [
+        { label:"A", y: correctY, isCorrect:true },
+        { label:"B", y: dummy1Y, isCorrect:false },
+        { label:"C", y: dummy2Y, isCorrect:false }
+      ];
+      // シャッフル
+      lines.sort(function(){ return Math.random()-0.5; });
+      // Y座標でソートして上からA, B, Cと命名
+      lines.sort(function(a,b){ return a.y - b.y; });
+      lines[0].label = "A"; lines[1].label = "B"; lines[2].label = "C";
+
+      quizState.options = lines;
+      for(var i=0; i<lines.length; i++){
+        if(lines[i].isCorrect) quizState.correctIndex = i;
+      }
+
+      var explainDetail = (box.angleType === "bird")
+        ? "上面（天面）が見えているため、目線（アイレベル）は立体よりも高い位置にあります。"
+        : (box.angleType === "worm")
+          ? "下面（底面）が見えているため、目線（アイレベル）は立体よりも低い位置にあります。"
+          : "上面も下面もほぼ見えないため、目線は立体の正面（中央）にあります。";
+      quizState.explain = "正解は <strong>【" + lines[quizState.correctIndex].label + "】</strong> です。" + explainDetail + "立体の各辺を延長した線はすべてこのアイレベル上の消失点へと収束します。";
+
+    } else if(quizState.type === "angle"){
+      quizCategoryTag.textContent = "問・アングル（視点）判定";
+      quizQuestionText.textContent = "この直方体は、アイレベル（視点）に対してどのアングル？";
+
+      quizState.options = [
+        { label:"見下ろし（フカン）", desc:"目線が物体より上にある", isCorrect: box.angleType === "bird" },
+        { label:"水平（アイレベル上）", desc:"目線が物体とほぼ同じ高さにある", isCorrect: box.angleType === "level" },
+        { label:"見上げ（アオリ）", desc:"目線が物体より下にある", isCorrect: box.angleType === "worm" }
+      ];
+
+      for(var a=0; a<quizState.options.length; a++){
+        if(quizState.options[a].isCorrect) quizState.correctIndex = a;
+      }
+
+      var ansLabel = quizState.options[quizState.correctIndex].label;
+      var reason = (box.angleType === "bird")
+        ? "上面（天面）が見えているので「見下ろし（フカン）」です。"
+        : (box.angleType === "worm")
+          ? "下面（底面）が見えているので「見上げ（アオリ）」です。"
+          : "上面・底面が見えず正面から捉えているので「水平」です。";
+      quizState.explain = "正解は <strong>【" + ansLabel + "】</strong> です。" + reason;
+
+    } else { // "vp"
+      quizCategoryTag.textContent = "問・パースの収束（消失点）当て";
+      quizQuestionText.textContent = "立体の辺の延長線が集まる【消失点（VP）】はどれ？";
+
+      var targetVP = box.vp1 || box.vp2 || { x: W*0.1, y: box.eyeLevelY };
+      var isLeft = targetVP.x < W/2;
+      var offset = Math.min(W,H)*0.24;
+      var ptsList = [
+        { label:"①", x: targetVP.x, y: targetVP.y, isCorrect: true },
+        { label:"②", x: targetVP.x + (isLeft ? offset : -offset), y: targetVP.y + 22, isCorrect: false },
+        { label:"③", x: targetVP.x + (isLeft ? offset*1.8 : -offset*1.8), y: targetVP.y - 20, isCorrect: false }
+      ];
+      ptsList.sort(function(){ return Math.random() - 0.5; });
+      ptsList[0].label = "①"; ptsList[1].label = "②"; ptsList[2].label = "③";
+
+      quizState.options = ptsList;
+      for(var v=0; v<ptsList.length; v++){
+        if(ptsList[v].isCorrect) quizState.correctIndex = v;
+      }
+
+      quizState.explain = "正解は <strong>【" + ptsList[quizState.correctIndex].label + "】</strong> です。同じ方向へ伸びる平行な辺は、パースによって遠く離れたアイレベル上の1点（消失点）へと正確に吸い込まれます。";
+    }
+
+    // ボタンの描画
+    quizState.options.forEach(function(opt, idx){
+      var btn = document.createElement("button");
+      btn.className = "quiz-opt-btn";
+      btn.innerHTML = "<span>" + opt.label + (opt.desc ? " <span style='font-size:12px;font-weight:400;color:var(--ink-soft);'>("+opt.desc+")</span>" : "") + "</span><span>→</span>";
+      btn.addEventListener("click", function(){ handleQuizAnswer(idx); });
+      quizOptionsWrap.appendChild(btn);
+    });
+
+    updateQuizStatsUI();
+    requestRender();
+  }
+
+  function handleQuizAnswer(idx){
+    if(quizState.answered) return;
+    quizState.answered = true;
+    quizState.selected = idx;
+
+    quizStats.total++;
+    var isCorrect = (idx === quizState.correctIndex);
+    if(isCorrect) quizStats.correct++;
+    saveState();
+    updateQuizStatsUI();
+
+    var buttons = quizOptionsWrap.querySelectorAll(".quiz-opt-btn");
+    buttons.forEach(function(b, i){
+      b.disabled = true;
+      if(i === quizState.correctIndex){
+        b.classList.add("correct");
+        b.querySelector("span:last-child").textContent = "◎";
+      } else if(i === idx && !isCorrect){
+        b.classList.add("wrong");
+        b.querySelector("span:last-child").textContent = "×";
+      }
+    });
+
+    quizBadge.textContent = isCorrect ? "◎" : "△";
+    quizBadge.className = "quiz-badge " + (isCorrect ? "good" : "bad");
+    quizResultText.textContent = isCorrect ? "正解！" : "惜しい！";
+    quizExplainText.innerHTML = quizState.explain;
+    quizFeedbackWrap.hidden = false;
+
+    requestRender();
+  }
+
+  quizNextBtn.addEventListener("click", function(){
+    startNewQuiz();
+  });
+
+  function updateQuizStatsUI(){
+    quizCorrectStat.textContent = quizStats.correct;
+    var rate = quizStats.total > 0 ? Math.round((quizStats.correct / quizStats.total) * 100) : 0;
+    quizRateStat.textContent = rate + "%";
+  }
+
+  // ---------- 描画パイプライン ----------
+  function drawGridBackground(theme){
+    var step = 26;
+    ctx.fillStyle = theme.lineHair;
+    for(var gx=step/2; gx<W; gx+=step){
+      for(var gy=step/2; gy<H; gy+=step){
+        ctx.beginPath();
+        ctx.arc(gx,gy,1.1,0,Math.PI*2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawGuide(g, opacity, theme){
+    if(!g) return;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.lineWidth = 2.4;
+    ctx.strokeStyle = theme.shu;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+    var paths = g.paths || (g.points ? [g.points] : []);
+    for(var p=0; p<paths.length; p++){
+      var pts = paths[p];
+      if(!pts || pts.length < 2) continue;
+      ctx.setLineDash([7,7]);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(var i=1; i<pts.length; i++){
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+
+    ctx.globalAlpha = Math.min(1, opacity + 0.3);
+    ctx.fillStyle = theme.shu;
+    if(g.keyPoints){
+      for(var k=0; k<g.keyPoints.length; k++){
+        ctx.beginPath();
+        ctx.arc(g.keyPoints[k].x, g.keyPoints[k].y, 4.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    } else if(paths.length === 1 && paths[0].length > 0){
+      ctx.beginPath();
+      ctx.arc(paths[0][0].x, paths[0][0].y, 5.5, 0, Math.PI*2);
+      ctx.fill();
+
+      if(mode === "straight" || mode === "curve"){
+        var last = paths[0][paths[0].length - 1];
+        ctx.beginPath();
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = theme.shu;
+        ctx.arc(last.x, last.y, 7, 0, Math.PI*2);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawPlainStroke(points, theme){
+    ctx.save();
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.strokeStyle = theme.ink;
+    for(var i=1; i<points.length; i++){
+      var pr = points[i].p !== undefined ? points[i].p : 0.5;
+      ctx.lineWidth = 1.8 + pr*3.0;
+      ctx.beginPath();
+      ctx.moveTo(points[i-1].x, points[i-1].y);
+      ctx.lineTo(points[i].x, points[i].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function colorForDev(dev, s, theme){
+    if(dev < s.goodThresh) return theme.moss;
+    if(dev < s.midThresh) return theme.ai;
+    return theme.shu;
+  }
+
+  function drawScoredStrokeItem(s, theme){
+    ctx.save();
+    ctx.lineCap="round"; ctx.lineJoin="round";
+    ctx.lineWidth = 3.4;
+    for(var i=1; i<s.points.length; i++){
+      ctx.strokeStyle = colorForDev(s.devs[i], s, theme);
+      ctx.beginPath();
+      ctx.moveTo(s.points[i-1].x, s.points[i-1].y);
+      ctx.lineTo(s.points[i].x, s.points[i].y);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  // クイズ用の透視線・解説オーバーレイ描画
+  function renderQuizView(theme){
+    var box = quizState.boxData;
+    if(!box) return;
+
+    // 直方体の面（薄い色づけ）
+    ctx.save();
+    var v = box.v2d;
+    if(box.visibleFaces.top){
+      ctx.fillStyle = theme.aiSoft;
+      ctx.beginPath();
+      ctx.moveTo(v[3].x, v[3].y); ctx.lineTo(v[2].x, v[2].y);
+      ctx.lineTo(v[6].x, v[6].y); ctx.lineTo(v[7].x, v[7].y);
+      ctx.closePath(); ctx.fill();
+    }
+    if(box.visibleFaces.bottom){
+      ctx.fillStyle = theme.shuSoft;
+      ctx.beginPath();
+      ctx.moveTo(v[0].x, v[0].y); ctx.lineTo(v[4].x, v[4].y);
+      ctx.lineTo(v[5].x, v[5].y); ctx.lineTo(v[1].x, v[1].y);
+      ctx.closePath(); ctx.fill();
+    }
+
+    // 直方体の稜線
+    ctx.strokeStyle = theme.ink;
+    ctx.lineWidth = 2.6;
+    ctx.lineCap = "round"; ctx.lineJoin = "round";
+    for(var e=0; e<box.visibleEdges.length; e++){
+      var pA = v[box.visibleEdges[e][0]], pB = v[box.visibleEdges[e][1]];
+      ctx.beginPath();
+      ctx.moveTo(pA.x, pA.y); ctx.lineTo(pB.x, pB.y);
+      ctx.stroke();
+    }
+
+    // アイレベル当てクイズの候補ライン
+    if(quizState.type === "eye_level"){
+      var opts = quizState.options;
+      for(var i=0; i<opts.length; i++){
+        var lineY = opts[i].y;
+        var isThisCorrect = opts[i].isCorrect;
+
+        ctx.lineWidth = (quizState.answered && isThisCorrect) ? 2.5 : 1.6;
+        ctx.strokeStyle = (quizState.answered && isThisCorrect) ? theme.shu : (quizState.answered ? "rgba(100,100,100,0.3)" : theme.ai);
+        ctx.setLineDash((quizState.answered && isThisCorrect) ? [] : [6,6]);
+
+        ctx.beginPath();
+        ctx.moveTo(8, lineY); ctx.lineTo(W-8, lineY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // ラベル
+        ctx.fillStyle = (quizState.answered && isThisCorrect) ? theme.shu : theme.ai;
+        ctx.font = "bold 13px " + theme.fontBody;
+        ctx.fillText("線 " + opts[i].label + ((quizState.answered && isThisCorrect) ? "（アイレベル）" : ""), 14, lineY - 6);
+      }
+    }
+
+    // 消失点当てクイズの候補マーカー
+    if(quizState.type === "vp"){
+      var vpts = quizState.options;
+      for(var j=0; j<vpts.length; j++){
+        var p = vpts[j];
+        var isTarget = p.isCorrect;
+        ctx.fillStyle = (quizState.answered && isTarget) ? theme.shu : theme.ai;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, Math.PI*2);
+        ctx.fill();
+
+        ctx.font = "bold 13px " + theme.fontBody;
+        ctx.fillText(p.label, p.x - 4, p.y - 10);
+      }
+    }
+
+    // 回答後に表示される【パース補助線・収束解説】
+    if(quizState.answered){
+      // アイレベル水平線
+      ctx.lineWidth = 1.8;
+      ctx.strokeStyle = theme.shu;
+      ctx.setLineDash([]);
+      ctx.beginPath();
+      ctx.moveTo(0, box.eyeLevelY); ctx.lineTo(W, box.eyeLevelY);
+      ctx.stroke();
+
+      ctx.fillStyle = theme.shu;
+      ctx.font = "bold 12px " + theme.fontBody;
+      ctx.fillText("水平線（アイレベル・目線）", W - 165, box.eyeLevelY - 6);
+
+      // 消失点へのパース延長補助線（点線）
+      ctx.strokeStyle = theme.ai;
+      ctx.lineWidth = 1.2;
+      ctx.setLineDash([4,4]);
+
+      if(box.vp1){
+        for(var k=0; k<box.visibleEdges.length; k++){
+          var p1 = v[box.visibleEdges[k][0]];
+          ctx.beginPath();
+          ctx.moveTo(p1.x, p1.y); ctx.lineTo(box.vp1.x, box.vp1.y);
+          ctx.stroke();
+        }
+        ctx.fillStyle = theme.ai;
+        ctx.beginPath(); ctx.arc(box.vp1.x, box.vp1.y, 4.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillText("VP (消失点)", box.vp1.x + 6, box.vp1.y - 6);
+      }
+      if(box.vp2){
+        for(var m=0; m<box.visibleEdges.length; m++){
+          var p2 = v[box.visibleEdges[m][0]];
+          ctx.beginPath();
+          ctx.moveTo(p2.x, p2.y); ctx.lineTo(box.vp2.x, box.vp2.y);
+          ctx.stroke();
+        }
+        ctx.fillStyle = theme.ai;
+        ctx.beginPath(); ctx.arc(box.vp2.x, box.vp2.y, 4.5, 0, Math.PI*2); ctx.fill();
+        ctx.fillText("VP (消失点)", box.vp2.x - 70, box.vp2.y - 6);
+      }
+      ctx.setLineDash([]);
+    }
+    ctx.restore();
+  }
+
+  function render(){
+    if(W<=0 || H<=0) return;
+    var theme = {
+      ink: cssVar("--ink") || "#2A2724",
+      shu: cssVar("--shu") || "#B23B2A",
+      shuSoft: cssVar("--shu-soft") || "rgba(178,59,42,0.14)",
+      ai: cssVar("--ai") || "#3C5674",
+      aiSoft: cssVar("--ai-soft") || "rgba(60,86,116,0.15)",
+      moss: cssVar("--moss") || "#4B6E45",
+      paperDeep: cssVar("--paper-deep") || "#E7E1D2",
+      lineHair: cssVar("--line-hair") || "rgba(42,39,36,0.14)",
+      fontBody: cssVar("--font-body") || "sans-serif"
+    };
+    ctx.clearRect(0,0,W,H);
+    ctx.fillStyle = theme.paperDeep;
+    ctx.fillRect(0,0,W,H);
+    drawGridBackground(theme);
+
+    if(currentView === "draw"){
+      if(mode !== "free"){
+        if(guide) drawGuide(guide, guideOpacity, theme);
+        if(scoredStrokes){
+          for(var s=0; s<scoredStrokes.length; s++){
+            drawScoredStrokeItem(scoredStrokes[s], theme);
+          }
+        } else if(accumulatedStrokes.length > 0){
+          for(var a=0; a<accumulatedStrokes.length; a++){
+            drawPlainStroke(accumulatedStrokes[a], theme);
+          }
+        }
+      } else {
+        if(lastFreeStroke) drawPlainStroke(lastFreeStroke, theme);
+      }
+      if(isDrawing && currentPoints.length>1) drawPlainStroke(currentPoints, theme);
+    } else {
+      renderQuizView(theme);
+    }
+  }
+
+  function requestRender(){
+    if(renderQueued) return;
+    renderQueued = true;
+    requestAnimationFrame(function(){ renderQueued=false; render(); });
+  }
+
+  function resetGuideVisibility(){
+    guideOpacity = 1;
+    if(fadeRAF){ cancelAnimationFrame(fadeRAF); fadeRAF=null; }
+    if(!settings.fadeEnabled || mode==="free"){ requestRender(); return; }
+    var holdMs=1100, fadeMs=1400, minOpacity=0.14;
+    var t0 = performance.now();
+    function step(now){
+      var elapsed = now-t0;
+      if(elapsed < holdMs){ guideOpacity = 1; }
+      else if(elapsed < holdMs+fadeMs){
+        var p = (elapsed-holdMs)/fadeMs;
+        guideOpacity = 1-(1-minOpacity)*p;
+      } else {
+        guideOpacity = minOpacity;
+        requestRender();
+        fadeRAF = null;
+        return;
+      }
+      requestRender();
+      fadeRAF = requestAnimationFrame(step);
+    }
+    fadeRAF = requestAnimationFrame(step);
+  }
+
+  function clearMultiTimer(){
+    if(multiStrokeTimer){ clearTimeout(multiStrokeTimer); multiStrokeTimer=null; }
+  }
+
+  function newGuide(){
+    clearMultiTimer();
+    scoredStrokes = null;
+    accumulatedStrokes = [];
+    multiActions.hidden = true;
+
+    if(mode !== "free" && GENERATORS[mode] && W > 0 && H > 0){
+      guide = GENERATORS[mode]();
+    } else {
+      guide = null;
+    }
+    hideResult();
+    resetGuideVisibility();
+  }
+
+  function resizeCanvas(){
+    var rect = wrap.getBoundingClientRect();
+    if(rect.width === 0 || rect.height === 0) return;
+    W = Math.max(1, Math.round(rect.width));
+    H = Math.max(1, Math.round(rect.height));
+    dpr = window.devicePixelRatio || 1;
+    canvas.width = Math.round(W*dpr);
+    canvas.height = Math.round(H*dpr);
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function handleResize(){
+    if(isDrawing){ isDrawing=false; currentPoints=[]; }
+    resizeCanvas();
+    if(currentView === "draw") newGuide();
+    else startNewQuiz();
+  }
+
+  function pointFromEvent(e){
+    var rect = canvas.getBoundingClientRect();
+    return { x: e.clientX-rect.left, y: e.clientY-rect.top, p: e.pressure>0 ? e.pressure : 0.5 };
+  }
+
+  // ---------- イベントリスナー（描画モード専用） ----------
+  canvas.addEventListener("pointerdown", function(e){
+    if(currentView !== "draw") return; // クイズ時は手描き不可
+    if(mode!=="free" && !guide) return;
+    clearMultiTimer();
+    try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
+    isDrawing = true;
+    if(!isMultiMode()){
+      scoredStrokes = null;
+      accumulatedStrokes = [];
+    } else if(scoredStrokes){
+      scoredStrokes = null;
+      accumulatedStrokes = [];
+    }
+    hideResult();
+    currentPoints = [pointFromEvent(e)];
+    requestRender();
+    e.preventDefault();
+  }, { passive:false });
+
+  canvas.addEventListener("pointermove", function(e){
+    if(currentView !== "draw" || !isDrawing) return;
+    currentPoints.push(pointFromEvent(e));
+    requestRender();
+    e.preventDefault();
+  }, { passive:false });
+
+  function finishPointer(e){
+    if(currentView !== "draw" || !isDrawing) return;
+    isDrawing = false;
+    try{ canvas.releasePointerCapture(e.pointerId); }catch(err){}
+    var pts = currentPoints;
+    currentPoints = [];
+    if(pts.length < 2){ requestRender(); return; }
+
+    if(mode === "free"){
+      handleFreeStrokeComplete(pts);
+    } else if(!isMultiMode()){
+      handleScoreStrokes([pts]);
+    } else {
+      accumulatedStrokes.push(pts);
+      multiActions.hidden = false;
+      requestRender();
+      clearMultiTimer();
+      multiStrokeTimer = setTimeout(function(){
+        if(accumulatedStrokes.length > 0 && !scoredStrokes){
+          handleScoreStrokes(accumulatedStrokes);
+        }
+      }, 1250);
+    }
+  }
+  window.addEventListener("pointerup", finishPointer);
+  window.addEventListener("pointercancel", finishPointer);
+
+  undoStrokeBtn.addEventListener("click", function(){
+    clearMultiTimer();
+    if(accumulatedStrokes.length > 0){
+      accumulatedStrokes.pop();
+      if(accumulatedStrokes.length === 0) multiActions.hidden = true;
+      requestRender();
+    }
+  });
+
+  submitMultiBtn.addEventListener("click", function(){
+    clearMultiTimer();
+    if(accumulatedStrokes.length > 0){
+      handleScoreStrokes(accumulatedStrokes);
+    }
+  });
+
+  // ---------- 大カテゴリ切り替え（描画 vs 問答） ----------
+  function switchView(v){
+    currentView = v;
+    if(v === "draw"){
+      viewDrawBtn.classList.add("active");
+      viewQuizBtn.classList.remove("active");
+      drawSection.hidden = false;
+      drawControls.hidden = false;
+      quizSection.hidden = true;
+      appTipText.textContent = "Safariの共有ボタンから「ホーム画面に追加」しておくと、全画面アプリとして開けます。";
+      newGuide();
+    } else {
+      viewDrawBtn.classList.remove("active");
+      viewQuizBtn.classList.add("active");
+      drawSection.hidden = true;
+      drawControls.hidden = true;
+      quizSection.hidden = false;
+      appTipText.textContent = "問答に答えると、立体の辺が消失点へ吸い込まれるパース補助線が表示されます。";
+      startNewQuiz();
+    }
+  }
+  viewDrawBtn.addEventListener("click", function(){ switchView("draw"); });
+  viewQuizBtn.addEventListener("click", function(){ switchView("quiz"); });
+
+  function switchMode(m){
+    mode = m;
+    tabs.forEach(function(t){ t.setAttribute("aria-selected", t.dataset.mode===m ? "true":"false"); });
+    leadText.textContent = LEAD_TEXT[m];
+    lastFreeStroke = null;
+    newGuide();
+    updateProgressUI();
+  }
+  tabs.forEach(function(t){
+    t.addEventListener("click", function(){ switchMode(t.dataset.mode); });
+  });
+
+  retryBtn.addEventListener("click", function(){
+    scoredStrokes = null;
+    accumulatedStrokes = [];
+    multiActions.hidden = true;
+    hideResult();
+    resetGuideVisibility();
+  });
+  nextBtn.addEventListener("click", function(){
+    newGuide();
+  });
+
+  function updateProgressUI(){
+    var label = MODE_LABEL[mode];
+    var target = settings.targets[mode] || 0;
+    var count = countFor(todayKey(), mode);
+    progressLabel.textContent = label + " " + count + "/" + target + "本";
+    var dotsShown = Math.max(1, Math.min(target, 40));
+    stampTrack.innerHTML = "";
+    var filledDots = target>0 ? Math.round(Math.min(count,target)/target*dotsShown) : 0;
+    for(var i=0; i<dotsShown; i++){
+      var d = document.createElement("span");
+      d.className = "stamp-dot" + (i<filledDots ? " filled" : "");
+      stampTrack.appendChild(d);
+    }
+  }
+
+  function updateStatsUI(){
+    todayCountEl.textContent = totalFor(todayKey());
+    streakCountEl.textContent = computeStreak();
+  }
+
+  // ---------- 設定パネル ----------
+  function openSettings(){
+    targetInputs.straight.value = settings.targets.straight;
+    targetInputs.curve.value = settings.targets.curve;
+    targetInputs.circle.value = settings.targets.circle;
+    targetInputs.spiral.value = settings.targets.spiral;
+    targetInputs.box.value = settings.targets.box;
+    targetInputs.cylinder.value = settings.targets.cylinder;
+    fadeToggle.checked = settings.fadeEnabled;
+    Array.prototype.slice.call(difficultySeg.querySelectorAll("button")).forEach(function(b){
+      b.setAttribute("aria-pressed", b.dataset.val===settings.difficulty ? "true":"false");
+    });
+    overlay.hidden = false;
+    overlay.style.display = "flex";
+  }
+  function closeSettings(){
+    overlay.hidden = true;
+    overlay.style.display = "none";
+  }
+  settingsBtn.addEventListener("click", openSettings);
+  closeSettingsBtn.addEventListener("click", closeSettings);
+  overlay.addEventListener("click", function(e){ if(e.target===overlay) closeSettings(); });
+
+  Object.keys(targetInputs).forEach(function(k){
+    if(!targetInputs[k]) return;
+    targetInputs[k].addEventListener("change", function(){
+      var v = parseInt(targetInputs[k].value, 10);
+      if(isNaN(v) || v<1) v = settings.targets[k];
+      v = Math.max(1, Math.min(999, v));
+      settings.targets[k] = v;
+      saveState();
+      updateProgressUI();
+    });
+  });
+  fadeToggle.addEventListener("change", function(){
+    settings.fadeEnabled = fadeToggle.checked;
+    saveState();
+    resetGuideVisibility();
+  });
+  difficultySeg.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    settings.difficulty = btn.dataset.val;
+    Array.prototype.slice.call(difficultySeg.querySelectorAll("button")).forEach(function(b){
+      b.setAttribute("aria-pressed", b===btn ? "true":"false");
+    });
+    saveState();
+  });
+  resetTodayBtn.addEventListener("click", function(){
+    if(!window.confirm("今日の記録をリセットします。よろしいですか？")) return;
+    delete history[todayKey()];
+    saveState();
+    updateProgressUI();
+    updateStatsUI();
+  });
+
+  // ---------- 起動 ----------
+  function boot(){
+    loadState();
+    updateStatsUI();
+    updateQuizStatsUI();
+    resizeCanvas();
+    newGuide();
+    updateProgressUI();
+    closeSettings();
+    hideResult();
+
+    var ro = new ResizeObserver(function(){ handleResize(); });
+    ro.observe(wrap);
+    window.addEventListener("orientationchange", function(){ setTimeout(handleResize, 300); });
+  }
+
+  if(document.readyState === "loading"){
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+</script>
+</body>
+</html>      --ink:#ECE7DC;
       --ink-soft:#B6AFA0;
       --line-hair:rgba(236,231,220,0.16);
       --shu:#E2795F;
