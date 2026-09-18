@@ -112,9 +112,10 @@
     display:flex;
     gap:6px;
     overflow-x:auto;
-    padding-bottom:2px;
+    padding-bottom:4px;
     margin-bottom:12px;
     scrollbar-width:none;
+    -webkit-overflow-scrolling:touch;
   }
   .tabs::-webkit-scrollbar{ display:none; }
   .tab{
@@ -168,6 +169,12 @@
     font-size:14.5px;
     color:var(--ink-soft);
   }
+  .multi-actions{
+    display:flex;
+    justify-content:center;
+    gap:8px;
+    margin-top:10px;
+  }
 
   .result-row{
     display:flex;
@@ -175,9 +182,7 @@
     gap:14px;
     padding:14px 6px 4px;
   }
-  .result-row[hidden]{
-    display:none !important;
-  }
+  .result-row[hidden]{ display:none !important; }
   .stamp{
     width:60px;height:60px;
     border-radius:50%;
@@ -236,6 +241,11 @@
     cursor:pointer;
     touch-action:manipulation;
     white-space:nowrap;
+  }
+  .btn-sm{
+    padding:6px 14px;
+    font-size:12.5px;
+    border-radius:8px;
   }
   .btn-primary{ background:var(--ink); color:var(--paper); }
   .btn-ghost{ background:transparent; color:var(--ink-soft); border:1.5px solid var(--line-hair); }
@@ -299,9 +309,7 @@
     display:flex; align-items:flex-end; justify-content:center;
     z-index:50;
   }
-  .overlay[hidden]{
-    display:none !important;
-  }
+  .overlay[hidden]{ display:none !important; }
   .settings-panel{
     background:var(--paper);
     width:100%;
@@ -440,7 +448,7 @@
   <header class="app-header">
     <div>
       <h1>左手 稽古帖</h1>
-      <span class="sub">ひとり稽古・iPad向け</span>
+      <span class="sub">ひとり稽古・絵のウォームアップ</span>
     </div>
     <button class="icon-btn" id="settingsBtn" aria-label="設定を開く">⚙</button>
   </header>
@@ -450,6 +458,8 @@
     <button class="tab" role="tab" data-mode="curve" aria-selected="false">曲線</button>
     <button class="tab" role="tab" data-mode="circle" aria-selected="false">円</button>
     <button class="tab" role="tab" data-mode="spiral" aria-selected="false">渦巻</button>
+    <button class="tab" role="tab" data-mode="box" aria-selected="false">直方体</button>
+    <button class="tab" role="tab" data-mode="cylinder" aria-selected="false">円柱</button>
     <button class="tab" role="tab" data-mode="free" aria-selected="false">素振り</button>
   </nav>
 
@@ -461,6 +471,10 @@
 
   <section class="lead-row" id="leadRow">
     <p class="lead-text" id="leadText">始点から終点まで、まっすぐに引いてみよう</p>
+    <div class="multi-actions" id="multiActions" hidden>
+      <button class="btn btn-ghost btn-sm" id="undoStrokeBtn">1画戻す</button>
+      <button class="btn btn-primary btn-sm" id="submitMultiBtn">採点する</button>
+    </div>
   </section>
 
   <section class="result-row" id="resultRow" hidden aria-live="polite">
@@ -488,7 +502,7 @@
     <div class="stat-chip">連続 <strong id="streakCount">0</strong>日目</div>
   </section>
 
-  <p class="tip">Safariの共有ボタンから「ホーム画面に追加」しておくと、全画面アプリとして開けます。線は朱色のお手本に近いほど緑、離れるほど赤に色分けされます。</p>
+  <p class="tip">直方体・円柱は複数本の線で描けます。描き終えて約1.2秒何もしないか「採点する」を押すと判定されます。</p>
 </div>
 
 <div class="overlay" id="overlay" hidden>
@@ -502,6 +516,8 @@
         <label class="target-item"><span>曲線</span><input type="number" id="tg-curve" min="5" max="300" step="5"></label>
         <label class="target-item"><span>円</span><input type="number" id="tg-circle" min="5" max="300" step="5"></label>
         <label class="target-item"><span>渦巻</span><input type="number" id="tg-spiral" min="5" max="300" step="5"></label>
+        <label class="target-item"><span>直方体</span><input type="number" id="tg-box" min="5" max="300" step="5"></label>
+        <label class="target-item"><span>円柱</span><input type="number" id="tg-cylinder" min="5" max="300" step="5"></label>
       </div>
     </div>
 
@@ -542,9 +558,12 @@
 (function(){
   "use strict";
 
-  // ---------- persistence ----------
-  var STORAGE_KEY = "hidariteKeikochou_v1";
-  var settings = { targets:{ straight:50, curve:40, circle:30, spiral:20, free:30 }, fadeEnabled:false, difficulty:"normal" };
+  var STORAGE_KEY = "hidariteKeikochou_v2";
+  var settings = {
+    targets: { straight:50, curve:40, circle:30, spiral:20, box:20, cylinder:20, free:30 },
+    fadeEnabled: false,
+    difficulty: "normal"
+  };
   var history = {};
 
   function loadState(){
@@ -586,7 +605,7 @@
   }
   function incrementRep(m){
     var key = todayKey();
-    if(!history[key]) history[key] = { straight:0, curve:0, circle:0, spiral:0, free:0 };
+    if(!history[key]) history[key] = { straight:0, curve:0, circle:0, spiral:0, box:0, cylinder:0, free:0 };
     history[key][m] = (history[key][m]||0) + 1;
     saveState();
     updateProgressUI();
@@ -607,12 +626,14 @@
     return streak;
   }
 
-  // ---------- DOM refs ----------
   var canvas = document.getElementById("cv");
   var ctx = canvas.getContext("2d");
   var wrap = canvas.parentElement;
   var tabs = Array.prototype.slice.call(document.querySelectorAll(".tab"));
   var leadText = document.getElementById("leadText");
+  var multiActions = document.getElementById("multiActions");
+  var undoStrokeBtn = document.getElementById("undoStrokeBtn");
+  var submitMultiBtn = document.getElementById("submitMultiBtn");
   var resultRow = document.getElementById("resultRow");
   var stampMark = document.getElementById("stampMark");
   var scoreNum = document.getElementById("scoreNum");
@@ -634,19 +655,25 @@
     straight: document.getElementById("tg-straight"),
     curve: document.getElementById("tg-curve"),
     circle: document.getElementById("tg-circle"),
-    spiral: document.getElementById("tg-spiral")
+    spiral: document.getElementById("tg-spiral"),
+    box: document.getElementById("tg-box"),
+    cylinder: document.getElementById("tg-cylinder")
   };
 
-  var MODE_LABEL = { straight:"直線", curve:"曲線", circle:"円", spiral:"渦巻", free:"素振り" };
+  var MODE_LABEL = {
+    straight:"直線", curve:"曲線", circle:"円", spiral:"渦巻",
+    box:"直方体", cylinder:"円柱", free:"素振り"
+  };
   var LEAD_TEXT = {
     straight:"始点から終点まで、まっすぐに引いてみよう",
-    curve:"ゆるやかな曲線を、なめらかになぞろう",
-    circle:"一筆で、ぐるっと丸く",
-    spiral:"内側から外側へ、渦を巻くように",
-    free:"ガイドなし。肩とひじから大きく動かしてほぐそう"
+    curve:"腕全体を大きく使って、流れるような曲線を引こう",
+    circle:"手首を固めず、肩とひじで一筆で丸く",
+    spiral:"中心から等間隔を意識して、外側へ広げよう",
+    box:"アタリの基本。面の向きとパースを意識して形をとろう",
+    cylinder:"断面の楕円の丸みと、側面の平行ストロークを合わせよう",
+    free:"ガイドなし。画面いっぱいに腕を振って脱力しよう"
   };
 
-  // ---------- canvas state ----------
   var mode = "straight";
   var W = 0, H = 0, dpr = 1;
   var guide = null;
@@ -654,152 +681,316 @@
   var fadeRAF = null;
   var isDrawing = false;
   var currentPoints = [];
-  var scoredStroke = null;
+  var accumulatedStrokes = [];
+  var scoredStrokes = null;
   var lastFreeStroke = null;
   var renderQueued = false;
+  var multiStrokeTimer = null;
 
   function cssVar(name){
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
-  function clamp(v,a,b){ return Math.max(a, Math.min(b,v)); }
 
-  function clampSegment(x1,y1,x2,y2,margin){
-    var cx=(x1+x2)/2, cy=(y1+y2)/2;
-    for(var i=0;i<40;i++){
-      var ok = x1>=margin && x1<=W-margin && y1>=margin && y1<=H-margin &&
-               x2>=margin && x2<=W-margin && y2>=margin && y2<=H-margin;
-      if(ok) break;
-      x1 = cx+(x1-cx)*0.92; y1 = cy+(y1-cy)*0.92;
-      x2 = cx+(x2-cx)*0.92; y2 = cy+(y2-cy)*0.92;
+  function fitPointsInBounds(pts, margin, keyPoints){
+    var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for(var i=0;i<pts.length;i++){
+      if(pts[i].x < minX) minX = pts[i].x;
+      if(pts[i].x > maxX) maxX = pts[i].x;
+      if(pts[i].y < minY) minY = pts[i].y;
+      if(pts[i].y > maxY) maxY = pts[i].y;
     }
-    return [x1,y1,x2,y2];
+    var curW = maxX - minX || 1;
+    var curH = maxY - minY || 1;
+    var targetW = W - margin * 2;
+    var targetH = H - margin * 2;
+    var scale = Math.min(targetW / curW, targetH / curH);
+
+    var curCx = (minX + maxX) / 2;
+    var curCy = (minY + maxY) / 2;
+    var targetCx = W / 2;
+    var targetCy = H / 2;
+
+    for(var j=0;j<pts.length;j++){
+      pts[j].x = targetCx + (pts[j].x - curCx) * scale;
+      pts[j].y = targetCy + (pts[j].y - curCy) * scale;
+    }
+    if(keyPoints){
+      for(var k=0;k<keyPoints.length;k++){
+        keyPoints[k].x = targetCx + (keyPoints[k].x - curCx) * scale;
+        keyPoints[k].y = targetCy + (keyPoints[k].y - curCy) * scale;
+      }
+    }
+  }
+
+  function sampleSegment(p1, p2, count){
+    var pts = [];
+    for(var i=0; i<=count; i++){
+      var t = i / count;
+      pts.push({ x: p1.x + (p2.x - p1.x)*t, y: p1.y + (p2.y - p1.y)*t });
+    }
+    return pts;
   }
 
   function genStraight(){
-    var margin = Math.min(W,H)*0.15;
+    var margin = Math.min(W,H)*0.16;
     var angle = Math.random()*Math.PI;
-    var len = Math.min(W,H)*(0.55+Math.random()*0.28);
-    var cx = W/2 + (Math.random()-0.5)*W*0.10;
-    var cy = H/2 + (Math.random()-0.5)*H*0.10;
+    var len = Math.min(W,H)*(0.65 + Math.random()*0.22);
+    var cx = W/2, cy = H/2;
     var dx = Math.cos(angle)*len/2, dy = Math.sin(angle)*len/2;
-    var seg = clampSegment(cx-dx, cy-dy, cx+dx, cy+dy, margin);
-    var x1=seg[0], y1=seg[1], x2=seg[2], y2=seg[3];
-    var N=220, pts=[];
-    for(var i=0;i<=N;i++){
-      var t=i/N;
-      pts.push({ x: x1+(x2-x1)*t, y: y1+(y2-y1)*t });
-    }
-    return { points: pts };
+    var p1 = { x: cx-dx, y: cy-dy };
+    var p2 = { x: cx+dx, y: cy+dy };
+    var pts = sampleSegment(p1, p2, 220);
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
   }
 
   function genCurve(){
-    var margin = Math.min(W,H)*0.16;
-    var x1 = margin + Math.random()*(W-2*margin);
-    var y1 = margin + Math.random()*(H-2*margin);
+    var margin = Math.min(W,H)*0.14;
+    var len = Math.min(W,H)*(0.85 + Math.random()*0.25);
     var angle = Math.random()*Math.PI*2;
-    var len = Math.min(W,H)*(0.5+Math.random()*0.28);
-    var x2r = x1+Math.cos(angle)*len, y2r = y1+Math.sin(angle)*len;
-    var seg = clampSegment(x1,y1,x2r,y2r,margin);
-    x1=seg[0]; y1=seg[1]; var x2=seg[2], y2=seg[3];
-    var mx=(x1+x2)/2, my=(y1+y2)/2;
-    var nx=-(y2-y1), ny=(x2-x1);
-    var nlen = Math.hypot(nx,ny) || 1;
-    var actualLen = Math.hypot(x2-x1,y2-y1);
-    var bend = (0.18+Math.random()*0.24)*actualLen*(Math.random()<0.5?-1:1);
-    var cxp = clamp(mx+(nx/nlen)*bend, margin, W-margin);
-    var cyp = clamp(my+(ny/nlen)*bend, margin, H-margin);
-    var N=220, pts=[];
-    for(var i=0;i<=N;i++){
-      var t=i/N, mt=1-t;
-      var x = mt*mt*x1 + 2*mt*t*cxp + t*t*x2;
-      var y = mt*mt*y1 + 2*mt*t*cyp + t*t*y2;
-      pts.push({x:x,y:y});
+    var isSCurve = Math.random() < 0.45;
+
+    var cx = W/2, cy = H/2;
+    var dx = Math.cos(angle)*(len/2), dy = Math.sin(angle)*(len/2);
+    var x1 = cx - dx, y1 = cy - dy;
+    var x2 = cx + dx, y2 = cy + dy;
+    var nx = -Math.sin(angle), ny = Math.cos(angle);
+
+    var N = 240, pts = [];
+    if(!isSCurve){
+      var bend = len * (0.28 + Math.random()*0.22) * (Math.random()<0.5 ? 1 : -1);
+      var cpX = cx + nx * bend;
+      var cpY = cy + ny * bend;
+      for(var i=0; i<=N; i++){
+        var t=i/N, mt=1-t;
+        pts.push({
+          x: mt*mt*x1 + 2*mt*t*cpX + t*t*x2,
+          y: mt*mt*y1 + 2*mt*t*cpY + t*t*y2
+        });
+      }
+    } else {
+      var side = Math.random()<0.5 ? 1 : -1;
+      var bend1 = len * (0.24 + Math.random()*0.18) * side;
+      var bend2 = -len * (0.24 + Math.random()*0.18) * side;
+      var cp1X = x1 + (x2-x1)*0.32 + nx*bend1;
+      var cp1Y = y1 + (y2-y1)*0.32 + ny*bend1;
+      var cp2X = x1 + (x2-x1)*0.68 + nx*bend2;
+      var cp2Y = y1 + (y2-y1)*0.68 + ny*bend2;
+      for(var j=0; j<=N; j++){
+        var s=j/N, ms=1-s;
+        pts.push({
+          x: ms*ms*ms*x1 + 3*ms*ms*s*cp1X + 3*ms*s*s*cp2X + s*s*s*x2,
+          y: ms*ms*ms*y1 + 3*ms*ms*s*cp1Y + 3*ms*s*s*cp2Y + s*s*s*y2
+        });
+      }
     }
-    return { points: pts };
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
   }
 
   function genCircle(){
-    var margin = Math.min(W,H)*0.17;
-    var maxR = Math.min(W,H)/2 - margin;
-    var minR = maxR*0.42;
-    var r = minR + Math.random()*(maxR-minR);
-    var cx = clamp(W/2+(Math.random()-0.5)*W*0.08, r+margin*0.3, W-r-margin*0.3);
-    var cy = clamp(H/2+(Math.random()-0.5)*H*0.08, r+margin*0.3, H-r-margin*0.3);
+    var margin = Math.min(W,H)*0.18;
+    var r = Math.min(W,H)*0.34;
+    var cx = W/2, cy = H/2;
     var N=240, pts=[];
-    var start=-Math.PI/2;
-    for(var i=0;i<=N;i++){
-      var t=i/N, a=start+t*Math.PI*2;
+    var start = -Math.PI/2;
+    for(var i=0; i<=N; i++){
+      var t=i/N, a=start + t*Math.PI*2;
       pts.push({ x: cx+Math.cos(a)*r, y: cy+Math.sin(a)*r });
     }
-    return { points: pts };
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
   }
 
   function genSpiral(){
     var margin = Math.min(W,H)*0.15;
-    var maxR = Math.min(W,H)/2 - margin;
-    var turns = 2 + Math.random()*1.1;
+    var maxR = Math.min(W,H)*0.40;
+    var turns = 2.4;
     var cx = W/2, cy = H/2;
     var N=260, pts=[];
-    for(var i=0;i<=N;i++){
+    for(var i=0; i<=N; i++){
       var t=i/N;
       var a = t*turns*Math.PI*2 - Math.PI/2;
       var rr = maxR*0.10 + (maxR-maxR*0.10)*t;
       pts.push({ x: cx+Math.cos(a)*rr, y: cy+Math.sin(a)*rr });
     }
-    return { points: pts };
+    fitPointsInBounds(pts, margin);
+    return { points: pts, paths: [pts] };
   }
 
-  var GENERATORS = { straight: genStraight, curve: genCurve, circle: genCircle, spiral: genSpiral };
+  function genBox(){
+    var margin = Math.min(W,H)*0.16;
+    var isBirdEye = Math.random() < 0.75;
+    var bW = Math.min(W,H) * (0.35 + Math.random()*0.18);
+    var bD = Math.min(W,H) * (0.28 + Math.random()*0.18);
+    var bH = Math.min(W,H) * (0.35 + Math.random()*0.25);
+
+    var angleL = 0.55 + Math.random()*0.35;
+    var angleR = 0.55 + Math.random()*0.35;
+    var vxL = -Math.cos(angleL)*bD, vyL = -Math.sin(angleL)*bD*(isBirdEye ? 1 : -1);
+    var vxR = Math.cos(angleR)*bW,  vyR = -Math.sin(angleR)*bW*(isBirdEye ? 1 : -1);
+    var vDown = isBirdEye ? bH : -bH;
+
+    var p0 = { x: 0, y: 0 };
+    var p1 = { x: p0.x + vxL, y: p0.y + vyL };
+    var p2 = { x: p0.x + vxR, y: p0.y + vyR };
+    var p3 = { x: p1.x + vxR, y: p1.y + vyR };
+    var p4 = { x: p0.x, y: p0.y + vDown };
+    var p5 = { x: p1.x, y: p1.y + vDown };
+    var p6 = { x: p2.x, y: p2.y + vDown };
+
+    var segPairs = [
+      [p0, p1], [p1, p3], [p3, p2], [p2, p0],
+      [p0, p4], [p1, p5], [p2, p6],
+      [p5, p4], [p4, p6]
+    ];
+
+    var paths = [];
+    var allPts = [];
+    var keyPoints = [p0, p1, p2, p3, p4, p5, p6];
+
+    for(var s=0; s<segPairs.length; s++){
+      var segPts = sampleSegment(segPairs[s][0], segPairs[s][1], 28);
+      paths.push(segPts);
+      for(var k=0; k<segPts.length; k++) allPts.push(segPts[k]);
+    }
+
+    fitPointsInBounds(allPts, margin, keyPoints);
+    for(var p=0; p<paths.length; p++){
+      for(var q=0; q<paths[p].length; q++){
+        // 点群参照は同期済み
+      }
+    }
+    return { points: allPts, paths: paths, keyPoints: keyPoints };
+  }
+
+  function genCylinder(){
+    var margin = Math.min(W,H)*0.16;
+    var rx = Math.min(W,H) * (0.24 + Math.random()*0.12);
+    var ry = rx * (0.34 + Math.random()*0.24);
+    var len = Math.min(W,H) * (0.42 + Math.random()*0.25);
+    var tilt = (Math.random() - 0.5) * 0.45;
+
+    var ax = Math.sin(tilt)*len, ay = Math.cos(tilt)*len;
+    var c1 = { x: 0, y: -ay/2 };
+    var c2 = { x: c1.x + ax, y: c1.y + ay };
+
+    var topPts = [];
+    var N_top = 80;
+    for(var i=0; i<=N_top; i++){
+      var a = i/N_top * Math.PI*2;
+      topPts.push({
+        x: c1.x + Math.cos(a)*rx*Math.cos(tilt) - Math.sin(a)*ry*Math.sin(tilt),
+        y: c1.y + Math.cos(a)*rx*Math.sin(tilt) + Math.sin(a)*ry*Math.cos(tilt)
+      });
+    }
+
+    var bottomPts = [];
+    var N_bot = 50;
+    for(var j=0; j<=N_bot; j++){
+      var b = j/N_bot * Math.PI;
+      bottomPts.push({
+        x: c2.x + Math.cos(b)*rx*Math.cos(tilt) - Math.sin(b)*ry*Math.sin(tilt),
+        y: c2.y + Math.cos(b)*rx*Math.sin(tilt) + Math.sin(b)*ry*Math.cos(tilt)
+      });
+    }
+
+    var leftSide = sampleSegment(topPts[Math.round(N_top*0.5)], bottomPts[0], 35);
+    var rightSide = sampleSegment(topPts[0], bottomPts[N_bot], 35);
+
+    var paths = [topPts, bottomPts, leftSide, rightSide];
+    var allPts = [];
+    for(var p=0; p<paths.length; p++){
+      for(var q=0; q<paths[p].length; q++) allPts.push(paths[p][q]);
+    }
+
+    fitPointsInBounds(allPts, margin);
+    return { points: allPts, paths: paths };
+  }
+
+  var GENERATORS = {
+    straight: genStraight,
+    curve: genCurve,
+    circle: genCircle,
+    spiral: genSpiral,
+    box: genBox,
+    cylinder: genCylinder
+  };
+
+  function isMultiMode(){
+    return mode === "box" || mode === "cylinder";
+  }
 
   function getThresholdFactors(){
     var table = {
-      easy:   { covF:0.065, kF:0.075 },
-      normal: { covF:0.045, kF:0.050 },
-      hard:   { covF:0.030, kF:0.032 }
+      easy:   { covF:0.075, kF:0.085 },
+      normal: { covF:0.050, kF:0.055 },
+      hard:   { covF:0.032, kF:0.035 }
     };
     return table[settings.difficulty] || table.normal;
   }
 
-  function handleScoredStrokeComplete(points){
-    if(!guide || !guide.points || guide.points.length===0) return;
+  function handleScoreStrokes(strokesArray){
+    if(!guide || !guide.points || guide.points.length === 0) return;
     var guidePts = guide.points;
-    var i, j, dx, dy, d, minD;
-    var sumDev = 0;
-    var devs = new Array(points.length);
+    var allUserPts = [];
+    var i, s, pt;
 
-    for(i=0;i<points.length;i++){
-      minD = Infinity;
-      for(j=0;j<guidePts.length;j++){
-        dx = points[i].x-guidePts[j].x; dy = points[i].y-guidePts[j].y;
-        d = dx*dx+dy*dy;
-        if(d<minD) minD=d;
+    for(s=0; s<strokesArray.length; s++){
+      for(i=0; i<strokesArray[s].length; i++){
+        allUserPts.push(strokesArray[s][i]);
       }
-      minD = Math.sqrt(minD);
-      devs[i] = minD;
-      sumDev += minD;
     }
-    var avgDev = sumDev/points.length;
+    if(allUserPts.length < 2) return;
 
+    var sumDev = 0;
+    var scored = [];
     var f = getThresholdFactors();
+    var k = Math.min(W,H)*f.kF;
+    var goodTh = k*0.6;
+    var midTh = k*1.45;
+
+    for(s=0; s<strokesArray.length; s++){
+      var strk = strokesArray[s];
+      var devs = new Array(strk.length);
+      for(i=0; i<strk.length; i++){
+        var minD = Infinity;
+        for(var j=0; j<guidePts.length; j++){
+          var dx = strk[i].x - guidePts[j].x;
+          var dy = strk[i].y - guidePts[j].y;
+          var d = dx*dx + dy*dy;
+          if(d < minD) minD = d;
+        }
+        var dist = Math.sqrt(minD);
+        devs[i] = dist;
+        sumDev += dist;
+      }
+      scored.push({ points: strk, devs: devs, goodThresh: goodTh, midThresh: midTh });
+    }
+
+    var avgDev = sumDev / allUserPts.length;
     var covThresh = Math.min(W,H)*f.covF;
     var covered = 0;
-    for(j=0;j<guidePts.length;j++){
-      minD = Infinity;
-      for(i=0;i<points.length;i++){
-        dx = points[i].x-guidePts[j].x; dy = points[i].y-guidePts[j].y;
-        d = dx*dx+dy*dy;
-        if(d<minD) minD=d;
-      }
-      if(Math.sqrt(minD) < covThresh) covered++;
-    }
-    var coverageRatio = covered/guidePts.length;
 
-    var k = Math.min(W,H)*f.kF;
-    var accuracyScore = Math.round(100*Math.exp(-avgDev/k));
-    var coverageScore = Math.round(coverageRatio*100);
+    for(var g=0; g<guidePts.length; g++){
+      var minGD = Infinity;
+      for(var u=0; u<allUserPts.length; u++){
+        var gdx = guidePts[g].x - allUserPts[u].x;
+        var gdy = guidePts[g].y - allUserPts[u].y;
+        var gd = gdx*gdx + gdy*gdy;
+        if(gd < minGD) minGD = gd;
+      }
+      if(Math.sqrt(minGD) < covThresh) covered++;
+    }
+
+    var coverageRatio = covered / guidePts.length;
+    var accuracyScore = Math.round(100 * Math.exp(-avgDev / k));
+    var coverageScore = Math.round(coverageRatio * 100);
     var overall = Math.round(accuracyScore*0.65 + coverageScore*0.35);
 
-    scoredStroke = { points: points, devs: devs, goodThresh: k*0.55, midThresh: k*1.4 };
+    scoredStrokes = scored;
+    accumulatedStrokes = [];
+    multiActions.hidden = true;
     incrementRep(mode);
     showResult(overall, accuracyScore, coverageScore);
     requestRender();
@@ -807,8 +998,8 @@
 
   function handleFreeStrokeComplete(points){
     var len = 0;
-    for(var i=1;i<points.length;i++){
-      len += Math.hypot(points[i].x-points[i-1].x, points[i].y-points[i-1].y);
+    for(var i=1; i<points.length; i++){
+      len += Math.hypot(points[i].x - points[i-1].x, points[i].y - points[i-1].y);
     }
     if(len < 18) return;
     lastFreeStroke = points;
@@ -833,6 +1024,7 @@
     void stampMark.offsetWidth;
     stampMark.classList.add("pop");
   }
+
   function hideResult(){
     resultRow.hidden = true;
     resultRow.style.display = "none";
@@ -851,34 +1043,48 @@
   }
 
   function drawGuide(g, opacity, theme){
-    if(!g || !g.points || g.points.length===0) return;
+    if(!g) return;
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.setLineDash([7,7]);
     ctx.lineWidth = 2.4;
     ctx.strokeStyle = theme.shu;
     ctx.lineCap = "round"; ctx.lineJoin = "round";
-    ctx.beginPath();
-    for(var i=0;i<g.points.length;i++){
-      var p = g.points[i];
-      if(i===0) ctx.moveTo(p.x,p.y); else ctx.lineTo(p.x,p.y);
+
+    var paths = g.paths || (g.points ? [g.points] : []);
+    for(var p=0; p<paths.length; p++){
+      var pts = paths[p];
+      if(!pts || pts.length < 2) continue;
+      ctx.setLineDash([7,7]);
+      ctx.beginPath();
+      ctx.moveTo(pts[0].x, pts[0].y);
+      for(var i=1; i<pts.length; i++){
+        ctx.lineTo(pts[i].x, pts[i].y);
+      }
+      ctx.stroke();
     }
-    ctx.stroke();
     ctx.setLineDash([]);
 
-    ctx.globalAlpha = Math.min(1, opacity+0.3);
+    ctx.globalAlpha = Math.min(1, opacity + 0.3);
     ctx.fillStyle = theme.shu;
-    ctx.beginPath();
-    ctx.arc(g.points[0].x, g.points[0].y, 5.5, 0, Math.PI*2);
-    ctx.fill();
-
-    if(mode==="straight" || mode==="curve"){
-      var last = g.points[g.points.length-1];
+    if(g.keyPoints){
+      for(var k=0; k<g.keyPoints.length; k++){
+        ctx.beginPath();
+        ctx.arc(g.keyPoints[k].x, g.keyPoints[k].y, 4.5, 0, Math.PI*2);
+        ctx.fill();
+      }
+    } else if(paths.length === 1 && paths[0].length > 0){
       ctx.beginPath();
-      ctx.lineWidth = 2.4;
-      ctx.strokeStyle = theme.shu;
-      ctx.arc(last.x, last.y, 7, 0, Math.PI*2);
-      ctx.stroke();
+      ctx.arc(paths[0][0].x, paths[0][0].y, 5.5, 0, Math.PI*2);
+      ctx.fill();
+
+      if(mode === "straight" || mode === "curve"){
+        var last = paths[0][paths[0].length - 1];
+        ctx.beginPath();
+        ctx.lineWidth = 2.4;
+        ctx.strokeStyle = theme.shu;
+        ctx.arc(last.x, last.y, 7, 0, Math.PI*2);
+        ctx.stroke();
+      }
     }
     ctx.restore();
   }
@@ -887,8 +1093,8 @@
     ctx.save();
     ctx.lineCap="round"; ctx.lineJoin="round";
     ctx.strokeStyle = theme.ink;
-    for(var i=1;i<points.length;i++){
-      var pr = points[i].p!==undefined ? points[i].p : 0.5;
+    for(var i=1; i<points.length; i++){
+      var pr = points[i].p !== undefined ? points[i].p : 0.5;
       ctx.lineWidth = 1.8 + pr*3.0;
       ctx.beginPath();
       ctx.moveTo(points[i-1].x, points[i-1].y);
@@ -904,14 +1110,15 @@
     return theme.shu;
   }
 
-  function drawScoredStroke(s, theme){
+  function drawScoredStrokeItem(s, theme){
     ctx.save();
     ctx.lineCap="round"; ctx.lineJoin="round";
     ctx.lineWidth = 3.4;
-    for(var i=1;i<s.points.length;i++){
+    for(var i=1; i<s.points.length; i++){
       ctx.strokeStyle = colorForDev(s.devs[i], s, theme);
       ctx.beginPath();
       ctx.moveTo(s.points[i-1].x, s.points[i-1].y);
+      ctx.lineTo(s.points[i].x, s.points[i-1].y ? s.points[i].y : s.points[i].y);
       ctx.lineTo(s.points[i].x, s.points[i].y);
       ctx.stroke();
     }
@@ -935,10 +1142,19 @@
 
     if(mode !== "free"){
       if(guide) drawGuide(guide, guideOpacity, theme);
-      if(scoredStroke) drawScoredStroke(scoredStroke, theme);
+      if(scoredStrokes){
+        for(var s=0; s<scoredStrokes.length; s++){
+          drawScoredStrokeItem(scoredStrokes[s], theme);
+        }
+      } else if(accumulatedStrokes.length > 0){
+        for(var a=0; a<accumulatedStrokes.length; a++){
+          drawPlainStroke(accumulatedStrokes[a], theme);
+        }
+      }
     } else {
       if(lastFreeStroke) drawPlainStroke(lastFreeStroke, theme);
     }
+
     if(isDrawing && currentPoints.length>1) drawPlainStroke(currentPoints, theme);
   }
 
@@ -972,8 +1188,16 @@
     fadeRAF = requestAnimationFrame(step);
   }
 
+  function clearMultiTimer(){
+    if(multiStrokeTimer){ clearTimeout(multiStrokeTimer); multiStrokeTimer=null; }
+  }
+
   function newGuide(){
-    scoredStroke = null;
+    clearMultiTimer();
+    scoredStrokes = null;
+    accumulatedStrokes = [];
+    multiActions.hidden = true;
+
     if(mode !== "free" && GENERATORS[mode] && W > 0 && H > 0){
       guide = GENERATORS[mode]();
     } else {
@@ -1007,9 +1231,16 @@
 
   canvas.addEventListener("pointerdown", function(e){
     if(mode!=="free" && !guide) return;
+    clearMultiTimer();
     try{ canvas.setPointerCapture(e.pointerId); }catch(err){}
     isDrawing = true;
-    scoredStroke = null;
+    if(!isMultiMode()){
+      scoredStrokes = null;
+      accumulatedStrokes = [];
+    } else if(scoredStrokes){
+      scoredStrokes = null;
+      accumulatedStrokes = [];
+    }
     hideResult();
     currentPoints = [pointFromEvent(e)];
     requestRender();
@@ -1030,11 +1261,41 @@
     var pts = currentPoints;
     currentPoints = [];
     if(pts.length < 2){ requestRender(); return; }
-    if(mode==="free") handleFreeStrokeComplete(pts);
-    else handleScoredStrokeComplete(pts);
+
+    if(mode === "free"){
+      handleFreeStrokeComplete(pts);
+    } else if(!isMultiMode()){
+      handleScoreStrokes([pts]);
+    } else {
+      accumulatedStrokes.push(pts);
+      multiActions.hidden = false;
+      requestRender();
+      clearMultiTimer();
+      multiStrokeTimer = setTimeout(function(){
+        if(accumulatedStrokes.length > 0 && !scoredStrokes){
+          handleScoreStrokes(accumulatedStrokes);
+        }
+      }, 1250);
+    }
   }
   window.addEventListener("pointerup", finishPointer);
   window.addEventListener("pointercancel", finishPointer);
+
+  undoStrokeBtn.addEventListener("click", function(){
+    clearMultiTimer();
+    if(accumulatedStrokes.length > 0){
+      accumulatedStrokes.pop();
+      if(accumulatedStrokes.length === 0) multiActions.hidden = true;
+      requestRender();
+    }
+  });
+
+  submitMultiBtn.addEventListener("click", function(){
+    clearMultiTimer();
+    if(accumulatedStrokes.length > 0){
+      handleScoreStrokes(accumulatedStrokes);
+    }
+  });
 
   function switchMode(m){
     mode = m;
@@ -1047,8 +1308,11 @@
   tabs.forEach(function(t){
     t.addEventListener("click", function(){ switchMode(t.dataset.mode); });
   });
+
   retryBtn.addEventListener("click", function(){
-    scoredStroke = null;
+    scoredStrokes = null;
+    accumulatedStrokes = [];
+    multiActions.hidden = true;
     hideResult();
     resetGuideVisibility();
   });
@@ -1064,12 +1328,13 @@
     var dotsShown = Math.max(1, Math.min(target, 40));
     stampTrack.innerHTML = "";
     var filledDots = target>0 ? Math.round(Math.min(count,target)/target*dotsShown) : 0;
-    for(var i=0;i<dotsShown;i++){
+    for(var i=0; i<dotsShown; i++){
       var d = document.createElement("span");
       d.className = "stamp-dot" + (i<filledDots ? " filled" : "");
       stampTrack.appendChild(d);
     }
   }
+
   function updateStatsUI(){
     todayCountEl.textContent = totalFor(todayKey());
     streakCountEl.textContent = computeStreak();
@@ -1080,6 +1345,8 @@
     targetInputs.curve.value = settings.targets.curve;
     targetInputs.circle.value = settings.targets.circle;
     targetInputs.spiral.value = settings.targets.spiral;
+    targetInputs.box.value = settings.targets.box;
+    targetInputs.cylinder.value = settings.targets.cylinder;
     fadeToggle.checked = settings.fadeEnabled;
     Array.prototype.slice.call(difficultySeg.querySelectorAll("button")).forEach(function(b){
       b.setAttribute("aria-pressed", b.dataset.val===settings.difficulty ? "true":"false");
@@ -1096,10 +1363,11 @@
   overlay.addEventListener("click", function(e){ if(e.target===overlay) closeSettings(); });
 
   Object.keys(targetInputs).forEach(function(k){
+    if(!targetInputs[k]) return;
     targetInputs[k].addEventListener("change", function(){
       var v = parseInt(targetInputs[k].value, 10);
       if(isNaN(v) || v<1) v = settings.targets[k];
-      v = clamp(v,1,999);
+      v = Math.max(1, Math.min(999, v));
       settings.targets[k] = v;
       saveState();
       updateProgressUI();
@@ -1127,7 +1395,6 @@
     updateStatsUI();
   });
 
-  // ---------- 初期起動処理 ----------
   function boot(){
     loadState();
     updateStatsUI();
