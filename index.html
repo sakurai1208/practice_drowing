@@ -815,7 +815,7 @@
 (function(){
   "use strict";
 
-  var STORAGE_KEY = "hidariteKeikochou_v3";
+  var STORAGE_KEY = "hidariteKeikochou_v4";
   var settings = {
     targets: { straight:50, curve:40, circle:30, spiral:20, box:20, cylinder:20, free:30 },
     fadeEnabled: false,
@@ -972,7 +972,6 @@
   var renderQueued = false;
   var multiStrokeTimer = null;
 
-  // Perspective practice has its own canvas and state, separate from warm-up scoring.
   var activeScreen = "warmup";
   var activePerspTab = "practice";
   var perspMode = "one";
@@ -992,7 +991,7 @@
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   }
 
-  // ---------- Perspective practice ----------
+  // ---------- Perspective Practice Engine ----------
   function perspectiveTheme(){
     return {
       ink: cssVar("--ink") || "#2A2724",
@@ -1007,394 +1006,544 @@
   function randBetween(min, max){ return min + Math.random() * (max-min); }
   function clamp(n, min, max){ return Math.max(min, Math.min(max, n)); }
   function toward(a, b, t){ return { x:a.x+(b.x-a.x)*t, y:a.y+(b.y-a.y)*t }; }
-  function lineCross(a, b, c, d){
-    var den = (a.x-b.x)*(c.y-d.y) - (a.y-b.y)*(c.x-d.x);
-    if(Math.abs(den) < 0.001) return toward(a,b,0.5);
-    var ab = a.x*b.y-a.y*b.x;
-    var cd = c.x*d.y-c.y*d.x;
-    return {
-      x:(ab*(c.x-d.x) - (a.x-b.x)*cd) / den,
-      y:(ab*(c.y-d.y) - (a.y-b.y)*cd) / den
+
+  function createPerspectiveScene(sceneMode, width, height){
+    var horizon = height * randBetween(0.25, 0.75);
+    var belowEye = (Math.random() < 0.5) ? (horizon < height * 0.5) : (Math.random() < 0.7);
+    var centerY;
+    if(belowEye){
+      centerY = clamp(horizon + height * randBetween(0.18, 0.32), height * 0.35, height * 0.75);
+    } else {
+      centerY = clamp(horizon - height * randBetween(0.18, 0.32), height * 0.25, height * 0.65);
+    }
+
+    var scene = {
+      mode: sceneMode,
+      horizon: sceneMode === "iso" ? null : horizon,
+      belowEye: sceneMode === "iso" ? null : belowEye,
+      center: { x: width * randBetween(0.42, 0.58), y: centerY },
+      vps: [], edges: [], guideSegments: [], surface: null, objectType: "box"
     };
+
+    if(sceneMode === "one"){
+      var vp = { x: width * randBetween(0.30, 0.70), y: horizon };
+      scene.vps = [vp];
+      var bw = width * randBetween(0.24, 0.32);
+      var bh = height * randBetween(0.20, 0.26);
+      var nTL = { x: scene.center.x - bw/2, y: scene.center.y - bh/2 };
+      var nTR = { x: scene.center.x + bw/2, y: scene.center.y - bh/2 };
+      var nBR = { x: scene.center.x + bw/2, y: scene.center.y + bh/2 };
+      var nBL = { x: scene.center.x - bw/2, y: scene.center.y + bh/2 };
+      var depth = randBetween(0.28, 0.42);
+      var fTL = toward(nTL, vp, depth), fTR = toward(nTR, vp, depth);
+      var fBR = toward(nBR, vp, depth), fBL = toward(nBL, vp, depth);
+
+      scene.edges = [
+        [nTL,nTR],[nTR,nBR],[nBR,nBL],[nBL,nTL],
+        [nTL,fTL],[nTR,fTR],[nBR,fBR],[nBL,fBL]
+      ];
+      if(belowEye){
+        scene.edges.push([fTL,fTR]);
+        if(scene.center.x > vp.x) scene.edges.push([fTL,fBL]);
+        if(scene.center.x < vp.x) scene.edges.push([fTR,fBR]);
+        scene.surface = [nTL, nTR, fTR, fTL];
+      } else {
+        scene.edges.push([fBL,fBR]);
+        if(scene.center.x > vp.x) scene.edges.push([fTL,fBL]);
+        if(scene.center.x < vp.x) scene.edges.push([fTR,fBR]);
+        scene.surface = [nBL, nBR, fBR, fBL];
+      }
+      scene.guideSegments = [[nTL,vp],[nTR,vp],[nBR,vp],[nBL,vp]];
+
+    } else if(sceneMode === "two"){
+      var span = width * randBetween(1.1, 1.4);
+      var vpL = { x: width/2 - span, y: horizon };
+      var vpR = { x: width/2 + span, y: horizon };
+      scene.vps = [vpL, vpR];
+
+      var boxH = height * randBetween(0.20, 0.26);
+      var nearT = { x: scene.center.x, y: scene.center.y - boxH/2 };
+      var nearB = { x: scene.center.x, y: scene.center.y + boxH/2 };
+      var tL = randBetween(0.18, 0.26), tR = randBetween(0.18, 0.26);
+      var lT = toward(nearT, vpL, tL), rT = toward(nearT, vpR, tR);
+      var lB = toward(nearB, vpL, tL), rB = toward(nearB, vpR, tR);
+
+      var den = (lT.x - vpR.x)*(rT.y - vpL.y) - (lT.y - vpR.y)*(rT.x - vpL.x);
+      var farT = nearT;
+      if(Math.abs(den) > 0.001){
+        var ab = lT.x*vpR.y - lT.y*vpR.x;
+        var cd = rT.x*vpL.y - rT.y*vpL.x;
+        farT = {
+          x: (ab*(rT.x-vpL.x) - (lT.x-vpR.x)*cd) / den,
+          y: (ab*(rT.y-vpL.y) - (lT.y-vpR.y)*cd) / den
+        };
+      }
+      var denB = (lB.x - vpR.x)*(rB.y - vpL.y) - (lB.y - vpR.y)*(rB.x - vpL.x);
+      var farB = nearB;
+      if(Math.abs(denB) > 0.001){
+        var abB = lB.x*vpR.y - lB.y*vpR.x;
+        var cdB = rB.x*vpL.y - rB.y*vpL.x;
+        farB = {
+          x: (abB*(rB.x-vpL.x) - (lB.x-vpR.x)*cdB) / denB,
+          y: (abB*(rB.y-vpL.y) - (lB.y-vpR.y)*cdB) / denB
+        };
+      }
+
+      scene.edges = [
+        [nearT, nearB], [lT, lB], [rT, rB],
+        [nearT, lT], [nearT, rT],
+        [nearB, lB], [nearB, rB]
+      ];
+      if(belowEye){
+        scene.edges.push([lT, farT], [rT, farT]);
+        scene.surface = [nearT, lT, farT, rT];
+      } else {
+        scene.edges.push([lB, farB], [rB, farB]);
+        scene.surface = [nearB, lB, farB, rB];
+      }
+
+      scene.guideSegments = [
+        [nearT, {x:0, y:nearT.y + (vpL.y-nearT.y)*(nearT.x)/(nearT.x-vpL.x)}],
+        [nearT, {x:width, y:nearT.y + (vpR.y-nearT.y)*(width-nearT.x)/(vpR.x-nearT.x)}],
+        [nearB, {x:0, y:nearB.y + (vpL.y-nearB.y)*(nearB.x)/(nearB.x-vpL.x)}],
+        [nearB, {x:width, y:nearB.y + (vpR.y-nearB.y)*(width-nearB.x)/(vpR.x-nearB.x)}],
+        [lT, {x:width, y:lT.y + (vpR.y-lT.y)*(width-lT.x)/(vpR.x-lT.x)}],
+        [rT, {x:0, y:rT.y + (vpL.y-rT.y)*(rT.x)/(rT.x-vpL.x)}]
+      ];
+
+    } else {
+      scene.center = { x: width * 0.5, y: height * 0.52 };
+      var size = Math.min(width, height) * randBetween(0.20, 0.24);
+      var tall = size * 1.15;
+      var top = { x: scene.center.x, y: scene.center.y - size };
+      var right = { x: scene.center.x + size * 0.866, y: scene.center.y - size * 0.5 };
+      var front = { x: scene.center.x, y: scene.center.y };
+      var left = { x: scene.center.x - size * 0.866, y: scene.center.y - size * 0.5 };
+      var rightD = { x: right.x, y: right.y + tall };
+      var frontD = { x: front.x, y: front.y + tall };
+      var leftD = { x: left.x, y: left.y + tall };
+
+      scene.edges = [
+        [top, right], [right, front], [front, left], [left, top],
+        [front, frontD], [left, leftD], [right, rightD],
+        [leftD, frontD], [frontD, rightD]
+      ];
+      scene.surface = [top, right, front, left];
+    }
+
+    if(sceneMode !== "iso" && Math.random() < 0.38){
+      addCylinderToScene(scene, width, height);
+    }
+    return scene;
   }
 
   function addCylinderToScene(scene, width, height){
     var midY = scene.center.y;
-    var cylH = height * randBetween(0.24, 0.30);
-    var rx = width * randBetween(0.105, 0.14);
-    var ry = Math.max(10, height * randBetween(0.036, 0.055));
+    var cylH = height * randBetween(0.22, 0.28);
+    var rx = width * randBetween(0.11, 0.14);
+    var topY = midY - cylH/2;
+    var bottomY = midY + cylH/2;
+    var distTop = Math.abs(topY - scene.horizon);
+    var distBot = Math.abs(bottomY - scene.horizon);
+    var ryTop = clamp(distTop * 0.16, 8, rx * 0.7);
+    var ryBot = clamp(distBot * 0.16, 8, rx * 0.7);
+
     scene.objectType = "cylinder";
-    scene.cylinder = { cx:scene.center.x, topY:midY-cylH/2, bottomY:midY+cylH/2, rx:rx, ry:ry };
-    scene.guideSegments = [];
+    scene.cylinder = { cx: scene.center.x, topY: topY, bottomY: bottomY, rx: rx, ryTop: ryTop, ryBot: ryBot };
+    scene.surface = null;
+
     if(scene.mode === "one"){
-      var one = scene.vps[0];
+      var vp = scene.vps[0];
       scene.guideSegments = [
-        [{x:scene.cylinder.cx-rx,y:scene.cylinder.topY},one],
-        [{x:scene.cylinder.cx+rx,y:scene.cylinder.topY},one],
-        [{x:scene.cylinder.cx-rx,y:scene.cylinder.bottomY},one],
-        [{x:scene.cylinder.cx+rx,y:scene.cylinder.bottomY},one]
+        [{x:scene.cylinder.cx - rx, y:topY}, vp],
+        [{x:scene.cylinder.cx + rx, y:topY}, vp],
+        [{x:scene.cylinder.cx - rx, y:bottomY}, vp],
+        [{x:scene.cylinder.cx + rx, y:bottomY}, vp]
       ];
     } else if(scene.mode === "two"){
-      var left = scene.vps[0], right = scene.vps[1];
+      var vpL = scene.vps[0], vpR = scene.vps[1];
       scene.guideSegments = [
-        [{x:scene.cylinder.cx-rx,y:scene.cylinder.topY},left],
-        [{x:scene.cylinder.cx+rx,y:scene.cylinder.topY},right],
-        [{x:scene.cylinder.cx-rx,y:scene.cylinder.bottomY},left],
-        [{x:scene.cylinder.cx+rx,y:scene.cylinder.bottomY},right]
+        [{x:scene.cylinder.cx - rx, y:topY}, {x:0, y:topY + (vpL.y-topY)*(scene.cylinder.cx-rx)/(scene.cylinder.cx-rx-vpL.x)}],
+        [{x:scene.cylinder.cx + rx, y:topY}, {x:width, y:topY + (vpR.y-topY)*(width-scene.cylinder.cx-rx)/(vpR.x-scene.cylinder.cx-rx)}]
       ];
     }
   }
 
-  function createPerspectiveScene(sceneMode, width, height){
-    var horizon = height * randBetween(0.28, 0.72);
-    var belowEye = Math.random() < 0.68;
-    var centerY = belowEye ? horizon + height*randBetween(0.16,0.25) : horizon - height*randBetween(0.16,0.25);
-    centerY = clamp(centerY, height*0.24, height*0.76);
-    var scene = {
-      mode:sceneMode,
-      horizon:sceneMode === "iso" ? null : horizon,
-      belowEye:sceneMode === "iso" ? null : belowEye,
-      center:{ x:width*randBetween(0.42,0.58), y:centerY },
-      vps:[], edges:[], guideSegments:[], surface:null, objectType:"box"
-    };
-
-    if(sceneMode === "one"){
-      var vp = { x:width*randBetween(0.28,0.72), y:horizon };
-      scene.vps = [vp];
-      var bw = width*randBetween(0.25,0.32), bh = height*randBetween(0.22,0.30);
-      var nTL = {x:scene.center.x-bw/2, y:scene.center.y-bh/2};
-      var nTR = {x:scene.center.x+bw/2, y:scene.center.y-bh/2};
-      var nBR = {x:scene.center.x+bw/2, y:scene.center.y+bh/2};
-      var nBL = {x:scene.center.x-bw/2, y:scene.center.y+bh/2};
-      var depth = randBetween(0.27,0.43);
-      var fTL = toward(nTL,vp,depth), fTR = toward(nTR,vp,depth);
-      var fBR = toward(nBR,vp,depth), fBL = toward(nBL,vp,depth);
-      scene.edges = [
-        [nTL,nTR],[nTR,nBR],[nBR,nBL],[nBL,nTL],
-        [fTL,fTR],[fTR,fBR],[fBR,fBL],[fBL,fTL],
-        [nTL,fTL],[nTR,fTR],[nBR,fBR],[nBL,fBL]
-      ];
-      scene.surface = belowEye ? [nTL,nTR,fTR,fTL] : [nBL,nBR,fBR,fBL];
-      scene.guideSegments = [[nTL,vp],[nTR,vp],[nBR,vp],[nBL,vp]];
-    } else if(sceneMode === "two"){
-      var vpL = {x:width*0.08, y:horizon};
-      var vpR = {x:width*0.92, y:horizon};
-      scene.vps = [vpL,vpR];
-      var boxH = height*randBetween(0.23,0.31);
-      var nearT = {x:scene.center.x, y:scene.center.y-boxH/2};
-      var nearB = {x:scene.center.x, y:scene.center.y+boxH/2};
-      var tL = randBetween(0.20,0.30), tR = randBetween(0.20,0.30);
-      var lT = toward(nearT,vpL,tL), rT = toward(nearT,vpR,tR);
-      var lB = toward(nearB,vpL,tL), rB = toward(nearB,vpR,tR);
-      var farT = lineCross(lT,vpR,rT,vpL);
-      var farB = lineCross(lB,vpR,rB,vpL);
-      scene.edges = [
-        [nearT,nearB],[lT,lB],[rT,rB],[farT,farB],
-        [nearT,lT],[lT,farT],[farT,rT],[rT,nearT],
-        [nearB,lB],[lB,farB],[farB,rB],[rB,nearB]
-      ];
-      scene.surface = belowEye ? [nearT,lT,farT,rT] : [nearB,lB,farB,rB];
-      scene.guideSegments = [
-        [nearT,vpL],[nearB,vpL],[nearT,vpR],[nearB,vpR],
-        [lT,vpR],[rT,vpL]
-      ];
-    } else {
-      scene.center = {x:width*0.5, y:height*0.53};
-      var size = Math.min(width,height)*randBetween(0.22,0.27);
-      var tall = size*1.20;
-      var top = {x:scene.center.x,y:scene.center.y-size};
-      var right = {x:scene.center.x+size,y:scene.center.y-size*0.5};
-      var front = {x:scene.center.x,y:scene.center.y};
-      var left = {x:scene.center.x-size,y:scene.center.y-size*0.5};
-      var topD = {x:top.x,y:top.y+tall};
-      var rightD = {x:right.x,y:right.y+tall};
-      var frontD = {x:front.x,y:front.y+tall};
-      var leftD = {x:left.x,y:left.y+tall};
-      scene.edges = [
-        [top,right],[right,front],[front,left],[left,top],
-        [top,topD],[right,rightD],[front,frontD],[left,leftD],
-        [topD,rightD],[rightD,frontD],[frontD,leftD],[leftD,topD]
-      ];
-      scene.surface = [top,right,front,left];
-    }
-
-    if(sceneMode !== "iso" && Math.random() < 0.34){ addCylinderToScene(scene,width,height); }
-    return scene;
+  function line(c, a, b){
+    c.beginPath(); c.moveTo(a.x, a.y); c.lineTo(b.x, b.y); c.stroke();
   }
-
-  function line(ctx, a, b){
-    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
-  }
-  function path(ctx, points, close){
+  function path(c, points, close){
     if(!points || !points.length) return;
-    ctx.beginPath(); ctx.moveTo(points[0].x,points[0].y);
-    for(var i=1;i<points.length;i++) ctx.lineTo(points[i].x,points[i].y);
-    if(close) ctx.closePath();
+    c.beginPath(); c.moveTo(points[0].x, points[0].y);
+    for(var i=1; i<points.length; i++) c.lineTo(points[i].x, points[i].y);
+    if(close) c.closePath();
   }
-  function drawPerspectiveGrid(ctx, width, height, scene, theme){
-    ctx.save();
-    ctx.strokeStyle = theme.lineHair;
-    ctx.lineWidth = 1;
-    ctx.globalAlpha = 0.82;
+
+  function drawPerspectiveGrid(c, width, height, scene, theme){
+    c.save();
+    c.strokeStyle = theme.lineHair;
+    c.lineWidth = 1;
+    c.globalAlpha = 0.85;
+
     if(scene.mode === "iso"){
-      var spacing = Math.max(25, Math.min(width,height)*0.12);
-      for(var i=-height;i<width+height;i+=spacing){
-        line(ctx,{x:i,y:height},{x:i+height*1.7,y:0});
-        line(ctx,{x:i,y:0},{x:i+height*1.7,y:height});
+      var sp = Math.max(26, Math.min(width, height) * 0.12);
+      for(var x = -width; x < width * 2; x += sp){
+        line(c, {x: x, y: 0}, {x: x + height * 0.577, y: height});
+        line(c, {x: x, y: 0}, {x: x - height * 0.577, y: height});
       }
-      for(var y=spacing*0.5;y<height;y+=spacing) line(ctx,{x:0,y:y},{x:width,y:y});
+      for(var y = 0; y <= height; y += sp * 0.866){
+        line(c, {x: 0, y: y}, {x: width, y: y});
+      }
     } else {
       var h = scene.horizon;
-      var targets = 12;
-      for(var n=0;n<=targets;n++){
-        var bottom = {x:width*n/targets,y:height};
-        if(scene.mode === "one") line(ctx,scene.vps[0],bottom);
-        else { line(ctx,scene.vps[0],bottom); line(ctx,scene.vps[1],bottom); }
+      var numLines = 14;
+      for(var n = 0; n <= numLines; n++){
+        var bottomPt = { x: width * n / numLines, y: height };
+        var topPt = { x: width * n / numLines, y: 0 };
+        if(scene.mode === "one"){
+          line(c, scene.vps[0], bottomPt);
+          line(c, scene.vps[0], topPt);
+        } else {
+          line(c, scene.vps[0], bottomPt);
+          line(c, scene.vps[1], bottomPt);
+          line(c, scene.vps[0], topPt);
+          line(c, scene.vps[1], topPt);
+        }
       }
-      for(var g=1;g<=9;g++){
-        var t = 1-Math.pow(0.74,g);
-        var yy = h + (height-h)*t;
-        line(ctx,{x:0,y:yy},{x:width,y:yy});
-      }
-    }
-    ctx.restore();
-  }
-  function drawHorizonAndVps(ctx, width, scene, theme, showLabels){
-    if(scene.mode === "iso"){
-      if(showLabels){
-        ctx.save(); ctx.fillStyle=theme.inkSoft || theme.ink; ctx.font="700 11px " + getComputedStyle(document.documentElement).fontFamily;
-        ctx.fillText("アイソメトリック：平行線は集まらない",14,22); ctx.restore();
-      }
-      return;
-    }
-    ctx.save();
-    ctx.strokeStyle=theme.shu; ctx.lineWidth=1.6; ctx.globalAlpha=0.85;
-    line(ctx,{x:0,y:scene.horizon},{x:width,y:scene.horizon});
-    if(showLabels){
-      ctx.font="700 11px " + getComputedStyle(document.documentElement).fontFamily;
-      ctx.fillStyle=theme.shu;
-      var labelY = scene.horizon < 24 ? scene.horizon+16 : scene.horizon-8;
-      ctx.fillText("アイレベル",12,labelY);
-    }
-    for(var i=0;i<scene.vps.length;i++){
-      var vp = scene.vps[i];
-      ctx.fillStyle=theme.shu; ctx.beginPath(); ctx.arc(vp.x,vp.y,4.2,0,Math.PI*2); ctx.fill();
-      if(showLabels){
-        var name = scene.vps.length===1 ? "消失点" : (i===0 ? "左の消失点" : "右の消失点");
-        var tx = clamp(vp.x-25,5,width-68);
-        ctx.fillText(name,tx,vp.y < 22 ? vp.y+19 : vp.y-10);
+      for(var g = 1; g <= 7; g++){
+        var t = Math.pow(g / 8, 2.2);
+        var yDown = h + (height - h) * t;
+        var yUp = h - h * t;
+        line(c, {x: 0, y: yDown}, {x: width, y: yDown});
+        line(c, {x: 0, y: yUp}, {x: width, y: yUp});
       }
     }
-    ctx.restore();
-  }
-  function drawObjectGuides(ctx, scene, theme){
-    if(!scene.guideSegments || !scene.guideSegments.length) return;
-    ctx.save();
-    ctx.strokeStyle=theme.ai; ctx.lineWidth=1.25; ctx.setLineDash([6,5]); ctx.globalAlpha=0.78;
-    for(var i=0;i<scene.guideSegments.length;i++) line(ctx,scene.guideSegments[i][0],scene.guideSegments[i][1]);
-    ctx.restore();
-  }
-  function drawCylinder(ctx, scene, theme){
-    var c=scene.cylinder;
-    ctx.save();
-    ctx.strokeStyle=theme.ink; ctx.lineWidth=2.4; ctx.lineJoin="round";
-    ctx.fillStyle=scene.belowEye ? "rgba(60,86,116,.12)" : "rgba(178,59,42,.10)";
-    ctx.beginPath(); ctx.ellipse(c.cx,scene.belowEye ? c.topY : c.bottomY,c.rx,c.ry,0,0,Math.PI*2); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(c.cx,c.topY,c.rx,c.ry,0,0,Math.PI*2); ctx.stroke();
-    ctx.beginPath(); ctx.ellipse(c.cx,c.bottomY,c.rx,c.ry,0,0,Math.PI*2); ctx.stroke();
-    line(ctx,{x:c.cx-c.rx,y:c.topY},{x:c.cx-c.rx,y:c.bottomY});
-    line(ctx,{x:c.cx+c.rx,y:c.topY},{x:c.cx+c.rx,y:c.bottomY});
-    ctx.restore();
-  }
-  function drawPerspectiveObject(ctx, scene, theme){
-    if(scene.objectType === "cylinder"){ drawCylinder(ctx,scene,theme); return; }
-    ctx.save();
-    if(scene.surface){
-      path(ctx,scene.surface,true);
-      ctx.fillStyle=scene.belowEye === false ? "rgba(178,59,42,.10)" : "rgba(60,86,116,.12)";
-      ctx.fill();
-    }
-    ctx.strokeStyle=theme.ink; ctx.lineWidth=2.45; ctx.lineCap="round"; ctx.lineJoin="round";
-    for(var i=0;i<scene.edges.length;i++) line(ctx,scene.edges[i][0],scene.edges[i][1]);
-    ctx.restore();
-  }
-  function drawPerspectiveUserStrokes(ctx, strokes, theme){
-    if(!strokes || !strokes.length) return;
-    ctx.save(); ctx.strokeStyle=theme.shu; ctx.lineCap="round"; ctx.lineJoin="round";
-    for(var s=0;s<strokes.length;s++){
-      var pts=strokes[s];
-      for(var i=1;i<pts.length;i++){
-        ctx.lineWidth=1.8+(pts[i].p||0.5)*2.4;
-        line(ctx,pts[i-1],pts[i]);
-      }
-    }
-    ctx.restore();
-  }
-  function drawPerspectiveFrame(ctx, width, height, scene, opts){
-    if(!scene || !width || !height) return;
-    var theme=perspectiveTheme();
-    ctx.clearRect(0,0,width,height);
-    ctx.fillStyle=theme.paper; ctx.fillRect(0,0,width,height);
-    drawPerspectiveGrid(ctx,width,height,scene,theme);
-    drawHorizonAndVps(ctx,width,scene,theme,!!opts.showLabels);
-    if(opts.showGuides) drawObjectGuides(ctx,scene,theme);
-    drawPerspectiveObject(ctx,scene,theme);
-    if(opts.showUser) drawPerspectiveUserStrokes(ctx,perspectiveUserStrokes.concat(currentPerspectiveStroke.length ? [currentPerspectiveStroke] : []),theme);
-  }
-  function resizePerspectiveCanvas(){
-    var rect=perspectiveCanvasWrap.getBoundingClientRect();
-    if(!rect.width || !rect.height) return false;
-    pW=Math.max(1,Math.round(rect.width)); pH=Math.max(1,Math.round(rect.height)); pDpr=window.devicePixelRatio||1;
-    perspectiveCanvas.width=Math.round(pW*pDpr); perspectiveCanvas.height=Math.round(pH*pDpr);
-    perspectiveCtx.setTransform(pDpr,0,0,pDpr,0,0);
-    return true;
-  }
-  function resizeQuizCanvas(){
-    var rect=quizCanvasWrap.getBoundingClientRect();
-    if(!rect.width || !rect.height) return false;
-    qW=Math.max(1,Math.round(rect.width)); qH=Math.max(1,Math.round(rect.height)); qDpr=window.devicePixelRatio||1;
-    quizCanvas.width=Math.round(qW*qDpr); quizCanvas.height=Math.round(qH*qDpr);
-    quizCtx.setTransform(qDpr,0,0,qDpr,0,0);
-    return true;
-  }
-  function renderPerspectivePractice(){
-    if(activeScreen !== "perspective" || activePerspTab !== "practice") return;
-    drawPerspectiveFrame(perspectiveCtx,pW,pH,perspectiveScene,{ showLabels:true, showGuides:perspGuidesVisible, showUser:true });
-  }
-  function requestPerspectiveRender(){
-    if(perspectiveRenderQueued) return;
-    perspectiveRenderQueued=true;
-    requestAnimationFrame(function(){ perspectiveRenderQueued=false; renderPerspectivePractice(); });
-  }
-  function updatePerspectiveNote(){
-    if(!perspectiveScene) return;
-    var s=perspectiveScene;
-    if(s.mode === "iso"){
-      perspNote.innerHTML="<strong>アイソメ：</strong>奥行きの辺は平行のまま。消失点を使わない、形の比率をとらえる練習です。";
-      return;
-    }
-    var face=s.belowEye ? "上面" : "下面";
-    var place=s.belowEye ? "下" : "上";
-    var perspectiveName=s.mode === "one" ? "1点透視では奥行きの辺が1つの消失点へ" : "2点透視では左右の辺がそれぞれの消失点へ";
-    perspNote.innerHTML="<strong>この図形：</strong>アイレベルより"+place+"なので"+face+"が見えます。"+perspectiveName+"集まります。";
-  }
-  function newPerspectiveScene(){
-    if(!pW || !pH) return;
-    perspectiveScene=createPerspectiveScene(perspMode,pW,pH);
-    perspectiveUserStrokes=[]; currentPerspectiveStroke=[];
-    updatePerspectiveNote(); requestPerspectiveRender();
-  }
-  function pointFromPerspectiveEvent(e){
-    var rect=perspectiveCanvas.getBoundingClientRect();
-    return {x:e.clientX-rect.left,y:e.clientY-rect.top,p:e.pressure>0?e.pressure:0.5};
+    c.restore();
   }
 
-  function horizonBand(scene, height){
-    if(scene.horizon < height*0.39) return "上";
-    if(scene.horizon > height*0.61) return "下";
-    return "中央";
+  function drawHorizonAndVps(c, width, scene, theme, showLabels){
+    if(scene.mode === "iso"){
+      if(showLabels){
+        c.save();
+        c.fillStyle = theme.inkSoft || theme.ink;
+        c.font = "700 11px sans-serif";
+        c.fillText("アイソメトリック：すべての平行線が集まらない空間", 14, 22);
+        c.restore();
+      }
+      return;
+    }
+    c.save();
+    c.strokeStyle = theme.shu;
+    c.lineWidth = 1.8;
+    c.globalAlpha = 0.9;
+    line(c, {x: 0, y: scene.horizon}, {x: width, y: scene.horizon});
+
+    if(showLabels){
+      c.font = "700 11px sans-serif";
+      c.fillStyle = theme.shu;
+      var labelY = scene.horizon < 24 ? scene.horizon + 16 : scene.horizon - 8;
+      c.fillText("アイレベル（目線の高さ）", 14, labelY);
+    }
+    for(var i=0; i<scene.vps.length; i++){
+      var vp = scene.vps[i];
+      if(vp.x >= 0 && vp.x <= width){
+        c.fillStyle = theme.shu;
+        c.beginPath(); c.arc(vp.x, vp.y, 4.5, 0, Math.PI*2); c.fill();
+        if(showLabels){
+          var name = scene.vps.length === 1 ? "消失点 (VP)" : (i === 0 ? "左VP" : "右VP");
+          var tx = clamp(vp.x - 22, 6, width - 64);
+          c.fillText(name, tx, vp.y < 22 ? vp.y + 19 : vp.y - 10);
+        }
+      }
+    }
+    c.restore();
   }
+
+  function drawObjectGuides(c, scene, theme){
+    if(!scene.guideSegments || !scene.guideSegments.length) return;
+    c.save();
+    c.strokeStyle = theme.ai;
+    c.lineWidth = 1.3;
+    c.setLineDash([5, 5]);
+    c.globalAlpha = 0.8;
+    for(var i=0; i<scene.guideSegments.length; i++){
+      line(c, scene.guideSegments[i][0], scene.guideSegments[i][1]);
+    }
+    c.restore();
+  }
+
+  function drawCylinder(c, scene, theme){
+    var cyl = scene.cylinder;
+    c.save();
+    c.strokeStyle = theme.ink;
+    c.lineWidth = 2.4;
+    c.lineJoin = "round";
+
+    if(scene.belowEye){
+      c.fillStyle = "rgba(60,86,116, 0.14)";
+      c.beginPath(); c.ellipse(cyl.cx, cyl.topY, cyl.rx, cyl.ryTop, 0, 0, Math.PI*2); c.fill();
+    } else {
+      c.fillStyle = "rgba(178,59,42, 0.12)";
+      c.beginPath(); c.ellipse(cyl.cx, cyl.bottomY, cyl.rx, cyl.ryBot, 0, 0, Math.PI*2); c.fill();
+    }
+
+    if(scene.belowEye){
+      c.beginPath(); c.ellipse(cyl.cx, cyl.bottomY, cyl.rx, cyl.ryBot, 0, 0, Math.PI); c.stroke();
+      c.beginPath(); c.ellipse(cyl.cx, cyl.topY, cyl.rx, cyl.ryTop, 0, 0, Math.PI*2); c.stroke();
+    } else {
+      c.beginPath(); c.ellipse(cyl.cx, cyl.topY, cyl.rx, cyl.ryTop, 0, Math.PI, Math.PI*2); c.stroke();
+      c.beginPath(); c.ellipse(cyl.cx, cyl.bottomY, cyl.rx, cyl.ryBot, 0, 0, Math.PI*2); c.stroke();
+    }
+    line(c, {x: cyl.cx - cyl.rx, y: cyl.topY}, {x: cyl.cx - cyl.rx, y: cyl.bottomY});
+    line(c, {x: cyl.cx + cyl.rx, y: cyl.topY}, {x: cyl.cx + cyl.rx, y: cyl.bottomY});
+    c.restore();
+  }
+
+  function drawPerspectiveObject(c, scene, theme){
+    if(scene.objectType === "cylinder"){
+      drawCylinder(c, scene, theme);
+      return;
+    }
+    c.save();
+    if(scene.surface){
+      path(c, scene.surface, true);
+      c.fillStyle = (scene.belowEye === false) ? "rgba(178,59,42, 0.14)" : "rgba(60,86,116, 0.14)";
+      c.fill();
+    }
+    c.strokeStyle = theme.ink;
+    c.lineWidth = 2.45;
+    c.lineCap = "round"; c.lineJoin = "round";
+    for(var i=0; i<scene.edges.length; i++){
+      line(c, scene.edges[i][0], scene.edges[i][1]);
+    }
+    c.restore();
+  }
+
+  function drawPerspectiveUserStrokes(c, strokes, theme){
+    if(!strokes || !strokes.length) return;
+    c.save();
+    c.strokeStyle = theme.shu;
+    c.lineCap = "round"; c.lineJoin = "round";
+    for(var s=0; s<strokes.length; s++){
+      var pts = strokes[s];
+      for(var i=1; i<pts.length; i++){
+        c.lineWidth = 1.8 + (pts[i].p || 0.5) * 2.4;
+        line(c, pts[i-1], pts[i]);
+      }
+    }
+    c.restore();
+  }
+
+  function drawPerspectiveFrame(c, width, height, scene, opts){
+    if(!scene || !width || !height) return;
+    var theme = perspectiveTheme();
+    c.clearRect(0, 0, width, height);
+    c.fillStyle = theme.paper;
+    c.fillRect(0, 0, width, height);
+
+    drawPerspectiveGrid(c, width, height, scene, theme);
+    if(opts.showGuides) drawObjectGuides(c, scene, theme);
+    drawPerspectiveObject(c, scene, theme);
+    drawHorizonAndVps(c, width, scene, theme, !!opts.showLabels);
+
+    if(opts.showUser){
+      drawPerspectiveUserStrokes(c, perspectiveUserStrokes.concat(currentPerspectiveStroke.length ? [currentPerspectiveStroke] : []), theme);
+    }
+  }
+
+  function resizePerspectiveCanvas(){
+    var rect = perspectiveCanvasWrap.getBoundingClientRect();
+    if(!rect.width || !rect.height) return false;
+    pW = Math.max(1, Math.round(rect.width));
+    pH = Math.max(1, Math.round(rect.height));
+    pDpr = window.devicePixelRatio || 1;
+    perspectiveCanvas.width = Math.round(pW * pDpr);
+    perspectiveCanvas.height = Math.round(pH * pDpr);
+    perspectiveCtx.setTransform(pDpr, 0, 0, pDpr, 0, 0);
+    return true;
+  }
+
+  function resizeQuizCanvas(){
+    var rect = quizCanvasWrap.getBoundingClientRect();
+    if(!rect.width || !rect.height) return false;
+    qW = Math.max(1, Math.round(rect.width));
+    qH = Math.max(1, Math.round(rect.height));
+    qDpr = window.devicePixelRatio || 1;
+    quizCanvas.width = Math.round(qW * qDpr);
+    quizCanvas.height = Math.round(qH * qDpr);
+    quizCtx.setTransform(qDpr, 0, 0, qDpr, 0, 0);
+    return true;
+  }
+
+  function renderPerspectivePractice(){
+    if(activeScreen !== "perspective" || activePerspTab !== "practice") return;
+    drawPerspectiveFrame(perspectiveCtx, pW, pH, perspectiveScene, { showLabels: true, showGuides: perspGuidesVisible, showUser: true });
+  }
+
+  function requestPerspectiveRender(){
+    if(perspectiveRenderQueued) return;
+    perspectiveRenderQueued = true;
+    requestAnimationFrame(function(){ perspectiveRenderQueued = false; renderPerspectivePractice(); });
+  }
+
+  function updatePerspectiveNote(){
+    if(!perspectiveScene) return;
+    var s = perspectiveScene;
+    if(s.mode === "iso"){
+      perspNote.innerHTML = "<strong>アイソメ：</strong>平行線はどこまでも平行。ゲームや設定画でよく使われる、形の比率を正しく把握する稽古です。";
+      return;
+    }
+    var face = s.belowEye ? "上面" : "下面";
+    var place = s.belowEye ? "下（見下ろし）" : "上（見上げ）";
+    var modeName = s.mode === "one" ? "1つの消失点へまっすぐ収束します。" : "左右2つの消失点へと分かれて収束します。";
+    perspNote.innerHTML = "<strong>この図形：</strong>アイレベルより" + place + "なので【" + face + "】が見えます。辺は" + modeName;
+  }
+
+  function newPerspectiveScene(){
+    if(!pW || !pH) return;
+    perspectiveScene = createPerspectiveScene(perspMode, pW, pH);
+    perspectiveUserStrokes = [];
+    currentPerspectiveStroke = [];
+    updatePerspectiveNote();
+    requestPerspectiveRender();
+  }
+
+  function pointFromPerspectiveEvent(e){
+    var rect = perspectiveCanvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top, p: e.pressure > 0 ? e.pressure : 0.5 };
+  }
+
+  // ---------- 一問一答（クイズ）システム ----------
+  function horizonBand(scene, height){
+    if(scene.horizon < height * 0.40) return "上（高め）";
+    if(scene.horizon > height * 0.60) return "下（低め）";
+    return "中央付近";
+  }
+
   function shuffledChoices(items){
-    var copy=items.slice();
-    for(var i=copy.length-1;i>0;i--){
-      var j=Math.floor(Math.random()*(i+1));
-      var temp=copy[i]; copy[i]=copy[j]; copy[j]=temp;
+    var copy = items.slice();
+    for(var i = copy.length - 1; i > 0; i--){
+      var j = Math.floor(Math.random() * (i + 1));
+      var temp = copy[i]; copy[i] = copy[j]; copy[j] = temp;
     }
     return copy;
   }
+
   function chooseQuizType(){
-    var types=["horizon","vp","view","projection"];
-    var candidates=types.filter(function(t){ return t!==lastQuizType; });
-    var type=candidates[Math.floor(Math.random()*candidates.length)];
-    lastQuizType=type;
+    var types = ["view", "horizon", "projection", "vp"];
+    var candidates = types.filter(function(t){ return t !== lastQuizType; });
+    var type = candidates[Math.floor(Math.random() * candidates.length)];
+    lastQuizType = type;
     return type;
   }
+
   function makeQuiz(){
     if(!qW || !qH) return;
-    var type=chooseQuizType();
+    var type = chooseQuizType();
     var mode;
     if(type === "projection"){
-      mode=["one","two","iso"][Math.floor(Math.random()*3)];
+      mode = ["one", "two", "iso"][Math.floor(Math.random() * 3)];
     } else {
-      mode=Math.random()<0.5 ? "one" : "two";
+      mode = Math.random() < 0.5 ? "one" : "two";
     }
-    quizScene=createPerspectiveScene(mode,qW,qH);
-    if(type === "view") quizScene.objectType="box";
+
+    quizScene = createPerspectiveScene(mode, qW, qH);
+    if(type === "view") quizScene.objectType = "box";
 
     if(type === "horizon"){
-      var band=horizonBand(quizScene,qH);
-      currentQuiz={
-        answer:band,
-        prompt:"この図形のアイレベルは、画面のどの高さ？",
-        choices:shuffledChoices(["上","中央","下"]),
-        explanation:"アイレベルは、奥行き方向の辺が集まっていく高さです。"
-      };
-    } else if(type === "vp"){
-      var answer=mode === "one" ? "1つの消失点" : "左右それぞれの消失点";
-      currentQuiz={
-        answer:answer,
-        prompt:"この図形の奥行き方向の辺は、どこへ向かう？",
-        choices:shuffledChoices(["1つの消失点","左右それぞれの消失点","画面の中心"]),
-        explanation:mode === "one" ? "1点透視では、奥行きの辺は同じ1つの消失点へ集まります。" : "2点透視では、左右の辺の組が別々の消失点へ集まります。"
+      var band = horizonBand(quizScene, qH);
+      currentQuiz = {
+        type: type,
+        answer: band,
+        prompt: "この立体の傾きから見て、【アイレベル（水平線）】は画面のどの高さ？",
+        choices: shuffledChoices(["上（高め）", "中央付近", "下（低め）"]),
+        explanation: "辺の延長が交わる高さがアイレベルです。" + (quizScene.belowEye ? "上面が見えているのでアイレベルは物体より高い位置にあります。" : "下面が見えているのでアイレベルは物体より低い位置にあります。")
       };
     } else if(type === "view"){
-      var location=quizScene.belowEye ? "アイレベルより下" : "アイレベルより上";
-      currentQuiz={
-        answer:location,
-        prompt:(quizScene.belowEye ? "上面" : "下面")+"が見えている。この図形はアイレベルのどちら側？",
-        choices:shuffledChoices(["アイレベルより上","アイレベルと同じ高さ","アイレベルより下"]),
-        explanation:quizScene.belowEye ? "アイレベルより下にある箱では上面が見えます。" : "アイレベルより上にある箱では下面が見えます。"
+      var isBird = quizScene.belowEye;
+      currentQuiz = {
+        type: type,
+        answer: isBird ? "見下ろし（フカン）" : "見上げ（アオリ）",
+        prompt: "この箱の見え方は、視点に対してどちらのアングル？",
+        choices: shuffledChoices(["見下ろし（フカン）", "見上げ（アオリ）"]),
+        explanation: isBird ? "上面（天面）が見えているため、目線が物体より高い「見下ろし」です。" : "下面（底面）が見えているため、目線が物体より低い「見上げ」です。"
+      };
+    } else if(type === "projection"){
+      var label = mode === "one" ? "1点透視" : (mode === "two" ? "2点透視" : "アイソメ");
+      currentQuiz = {
+        type: type,
+        answer: label,
+        prompt: "この空間の透視図法はどれ？",
+        choices: shuffledChoices(["1点透視", "2点透視", "アイソメ"]),
+        explanation: mode === "one" ? "奥行きの辺が1箇所の消失点に集まる1点透視です。" : (mode === "two" ? "左右の辺がそれぞれの消失点に向かう2点透視です。" : "平行線が収束せず平行のまま描かれるアイソメです。")
       };
     } else {
-      var label=mode === "one" ? "1点透視" : mode === "two" ? "2点透視" : "アイソメ";
-      currentQuiz={
-        answer:label,
-        prompt:"この空間の取り方はどれ？",
-        choices:shuffledChoices(["1点透視","2点透視","アイソメ"]),
-        explanation:mode === "one" ? "奥行きの辺が1つの点へ向かうので1点透視です。" : mode === "two" ? "左右の辺が2つの消失点へ向かうので2点透視です。" : "アイソメは奥行きの辺も平行のまま描きます。"
+      var vpAnswer = mode === "one" ? "1つの消失点に集まる" : "左右2つの消失点に分かれて集まる";
+      currentQuiz = {
+        type: type,
+        answer: vpAnswer,
+        prompt: "この立体の奥行き方向の辺は、どのように収束する？",
+        choices: shuffledChoices(["1つの消失点に集まる", "左右2つの消失点に分かれて集まる", "平行のまま集まらない"]),
+        explanation: mode === "one" ? "1点透視では奥行き方向のすべての線が同じ1つの消失点に吸い込まれます。" : "2点透視では左右の辺がそれぞれの消失点に向かって収束します。"
       };
     }
-    currentQuiz.answered=false;
+
+    currentQuiz.answered = false;
     renderQuiz();
     renderQuizCard();
   }
+
   function renderQuiz(){
-    if(activeScreen !== "perspective" || activePerspTab !== "quiz") return;
-    drawPerspectiveFrame(quizCtx,qW,qH,quizScene,{showLabels:false,showGuides:false,showUser:false});
+    if(activeScreen !== "perspective" || activePerspTab !== "quiz" || !quizScene) return;
+    var showGuides = !!(currentQuiz && currentQuiz.answered);
+    var showLabels = !!(currentQuiz && currentQuiz.answered);
+    drawPerspectiveFrame(quizCtx, qW, qH, quizScene, {
+      showLabels: showLabels,
+      showGuides: showGuides,
+      showUser: false
+    });
   }
+
   function renderQuizCard(){
     if(!currentQuiz) return;
-    quizPrompt.textContent=currentQuiz.prompt;
-    quizChoices.innerHTML="";
+    quizPrompt.textContent = currentQuiz.prompt;
+    quizChoices.innerHTML = "";
     currentQuiz.choices.forEach(function(choice){
-      var button=document.createElement("button");
-      button.type="button"; button.className="choice-btn"; button.textContent=choice;
-      button.dataset.answer=choice;
-      button.addEventListener("click",function(){ answerQuiz(choice,button); });
-      quizChoices.appendChild(button);
+      var btn = document.createElement("button");
+      btn.type = "button"; btn.className = "choice-btn"; btn.textContent = choice;
+      btn.dataset.answer = choice;
+      btn.addEventListener("click", function(){ answerQuiz(choice, btn); });
+      quizChoices.appendChild(btn);
     });
-    quizFeedback.textContent=""; quizFeedback.className="quiz-feedback";
+    quizFeedback.textContent = ""; quizFeedback.className = "quiz-feedback";
     updateQuizScore();
   }
+
   function updateQuizScore(){
-    quizCorrect.textContent=perspectiveStats.correct;
-    quizTotal.textContent=perspectiveStats.total;
+    quizCorrect.textContent = perspectiveStats.correct;
+    quizTotal.textContent = perspectiveStats.total;
   }
+
   function answerQuiz(answer, chosenButton){
     if(!currentQuiz || currentQuiz.answered) return;
-    currentQuiz.answered=true;
-    var correct=answer===currentQuiz.answer;
+    currentQuiz.answered = true;
+    var correct = (answer === currentQuiz.answer);
     perspectiveStats.total++;
     if(correct) perspectiveStats.correct++;
+
     Array.prototype.slice.call(quizChoices.querySelectorAll("button")).forEach(function(button){
-      button.disabled=true;
-      if(button.dataset.answer===currentQuiz.answer) button.classList.add("is-correct");
-      else if(button===chosenButton) button.classList.add("is-wrong");
+      button.disabled = true;
+      if(button.dataset.answer === currentQuiz.answer) button.classList.add("is-correct");
+      else if(button === chosenButton) button.classList.add("is-wrong");
     });
-    quizFeedback.textContent=(correct ? "正解。" : "おしい。")+currentQuiz.explanation;
-    quizFeedback.className="quiz-feedback "+(correct ? "is-correct" : "is-wrong");
-    updateQuizScore(); saveState();
+
+    quizFeedback.textContent = (correct ? "◎ 正解！ " : "△ おしい！ ") + currentQuiz.explanation;
+    quizFeedback.className = "quiz-feedback " + (correct ? "is-correct" : "is-wrong");
+    updateQuizScore();
+    saveState();
+    renderQuiz();
   }
+
   function openPerspectiveScreen(){
     requestAnimationFrame(function(){
       if(activePerspTab === "practice"){
@@ -1404,31 +1553,34 @@
       }
     });
   }
+
   function switchScreen(screen){
-    activeScreen=screen;
-    screenTabs.forEach(function(tab){ tab.setAttribute("aria-selected",tab.dataset.screen===screen ? "true" : "false"); });
-    warmupScreen.hidden=screen!=="warmup";
-    perspectiveScreen.hidden=screen!=="perspective";
+    activeScreen = screen;
+    screenTabs.forEach(function(tab){ tab.setAttribute("aria-selected", tab.dataset.screen === screen ? "true" : "false"); });
+    warmupScreen.hidden = (screen !== "warmup");
+    perspectiveScreen.hidden = (screen !== "perspective");
     if(screen === "perspective") openPerspectiveScreen();
     else requestAnimationFrame(function(){ resizeCanvas(); newGuide(); });
   }
+
   function switchPerspectiveTab(tabName){
-    activePerspTab=tabName;
-    perspTabs.forEach(function(tab){ tab.setAttribute("aria-selected",tab.dataset.perspTab===tabName ? "true" : "false"); });
-    perspPracticePane.hidden=tabName!=="practice";
-    perspQuizPane.hidden=tabName!=="quiz";
+    activePerspTab = tabName;
+    perspTabs.forEach(function(tab){ tab.setAttribute("aria-selected", tab.dataset.perspTab === tabName ? "true" : "false"); });
+    perspPracticePane.hidden = (tabName !== "practice");
+    perspQuizPane.hidden = (tabName !== "quiz");
     requestAnimationFrame(function(){
       if(tabName === "practice"){
         if(resizePerspectiveCanvas()){
           if(!perspectiveScene) newPerspectiveScene();
           else renderPerspectivePractice();
         }
-      } else if(resizeQuizCanvas()){
-        makeQuiz();
+      } else {
+        if(resizeQuizCanvas()) makeQuiz();
       }
     });
   }
 
+  // ---------- ウォーミングアップ描画ロジック ----------
   function fitPointsInBounds(pts, margin, keyPoints){
     var minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for(var i=0; i<pts.length; i++){
@@ -1469,7 +1621,6 @@
     return pts;
   }
 
-  // ---------- 3D Perspective Projection Engine ----------
   function rotatePoint(p, pitch, yaw, roll){
     var cy = Math.cos(yaw), sy = Math.sin(yaw);
     var x1 = p.x * cy + p.z * sy;
@@ -1495,7 +1646,6 @@
     return { x: p.x * s, y: -p.y * s, z: p.z };
   }
 
-  // ---------- Generators ----------
   function genStraight(){
     var margin = Math.min(W,H)*0.16;
     var angle = Math.random()*Math.PI;
@@ -1569,31 +1719,25 @@
 
   function genSpiral(){
     var margin = Math.min(W, H) * 0.15;
-    var turns = 2.0 + Math.random() * 1.5; // 2.0〜3.5巻き
-    var dir = Math.random() < 0.5 ? 1 : -1; // 時計回り / 反時計回りをランダム化
-    var startAngle = Math.random() * Math.PI * 2; // 描き始めの角度を全方位ランダム化
+    var turns = 2.0 + Math.random() * 1.5;
+    var dir = Math.random() < 0.5 ? 1 : -1;
+    var startAngle = Math.random() * Math.PI * 2;
     var maxR = Math.min(W, H) * 0.42;
-    var minR = maxR * (0.05 + Math.random() * 0.08); // 中心の広さ
-
-    // アタリ取りに役立つよう、真円だけでなく適度な楕円・傾きを付与
-    var aspect = 0.78 + Math.random() * 0.44; // 縦横比の変化
-    var tilt = Math.random() * Math.PI; // 全体の傾き
+    var minR = maxR * (0.05 + Math.random() * 0.08);
+    var aspect = 0.78 + Math.random() * 0.44;
+    var tilt = Math.random() * Math.PI;
 
     var N = 260, pts = [];
     for(var i = 0; i <= N; i++){
       var t = i / N;
       var a = startAngle + dir * t * turns * Math.PI * 2;
       var r = minR + (maxR - minR) * t;
-
-      // 楕円化と回転の計算
       var ex = Math.cos(a) * r;
       var ey = Math.sin(a) * r * aspect;
       var rx = ex * Math.cos(tilt) - ey * Math.sin(tilt);
       var ry = ex * Math.sin(tilt) + ey * Math.cos(tilt);
-
       pts.push({ x: W / 2 + rx, y: H / 2 + ry });
     }
-
     fitPointsInBounds(pts, margin);
     return { points: pts, paths: [pts] };
   }
@@ -1612,14 +1756,10 @@
 
     var hw = bW/2, hh = bH/2, hd = bD/2;
     var vLocal = [
-      {x:-hw, y:-hh, z:-hd},
-      {x: hw, y:-hh, z:-hd},
-      {x: hw, y: hh, z:-hd},
-      {x:-hw, y: hh, z:-hd},
-      {x:-hw, y:-hh, z: hd},
-      {x: hw, y:-hh, z: hd},
-      {x: hw, y: hh, z: hd},
-      {x:-hw, y: hh, z: hd}
+      {x:-hw, y:-hh, z:-hd}, {x: hw, y:-hh, z:-hd},
+      {x: hw, y: hh, z:-hd}, {x:-hw, y: hh, z:-hd},
+      {x:-hw, y:-hh, z: hd}, {x: hw, y:-hh, z: hd},
+      {x: hw, y: hh, z: hd}, {x:-hw, y: hh, z: hd}
     ];
 
     var faces = [
@@ -1657,7 +1797,6 @@
     var paths = [];
     var allPts = [];
     var keyPointsMap = {};
-
     var edgeKeys = Object.keys(edgeMap);
     for(var k=0; k<edgeKeys.length; k++){
       var pair = edgeMap[edgeKeys[k]];
@@ -1706,7 +1845,6 @@
       var pB = rotatePoint({x: R*cosA, y: -cylH/2, z: R*sinA}, pitch, yaw, roll);
       var pM = rotatePoint({x: R*cosA, y: 0, z: R*sinA}, pitch, yaw, roll);
       var norm = rotatePoint({x: cosA, y: 0, z: sinA}, pitch, yaw, roll);
-
       var vCam = { x: -pM.x, y: -pM.y, z: camDist - pM.z };
       var dSide = norm.x*vCam.x + norm.y*vCam.y + norm.z*vCam.z;
 
@@ -1737,7 +1875,6 @@
     var paths = [];
     var allPts = [];
 
-    // 全周が見える底面
     var fullLoop = [];
     var fullPts2D = (dotTop > 0) ? p2dTop : p2dBot;
     for(var f=0; f<=N; f++){
@@ -1745,7 +1882,6 @@
     }
     paths.push(fullLoop);
 
-    // 手前側（半周）が見える底面の弧
     var arcLoop = [];
     var arcPts2D = (dotTop > 0) ? p2dBot : p2dTop;
     var idx = i1;
@@ -1756,16 +1892,13 @@
     }
     paths.push(arcLoop);
 
-    // 側面の輪郭線（母線）2本（交差せず確実に上底と下底の同一点を結ぶ）
     var side1 = sampleSegment(p2dTop[i1], p2dBot[i1], 28);
     var side2 = sampleSegment(p2dTop[i2], p2dBot[i2], 28);
     paths.push(side1);
     paths.push(side2);
 
     for(var p=0; p<paths.length; p++){
-      for(var q=0; q<paths[p].length; q++){
-        allPts.push(paths[p][q]);
-      }
+      for(var q=0; q<paths[p].length; q++) allPts.push(paths[p][q]);
     }
 
     fitPointsInBounds(allPts, margin);
@@ -2084,12 +2217,13 @@
   function handleResize(){
     if(isDrawing){ isDrawing=false; currentPoints=[]; }
     resizeCanvas();
-    newGuide();
-    if(activeScreen === "perspective"){
+    if(activeScreen === "warmup"){
+      newGuide();
+    } else {
       if(activePerspTab === "practice"){
-        if(resizePerspectiveCanvas()) newPerspectiveScene();
-      } else if(resizeQuizCanvas()){
-        makeQuiz();
+        if(resizePerspectiveCanvas()) renderPerspectivePractice();
+      } else {
+        if(resizeQuizCanvas()) renderQuiz();
       }
     }
   }
@@ -2180,56 +2314,58 @@
   });
 
   screenTabs.forEach(function(tab){
-    tab.addEventListener("click",function(){ switchScreen(tab.dataset.screen); });
+    tab.addEventListener("click", function(){ switchScreen(tab.dataset.screen); });
   });
   perspTabs.forEach(function(tab){
-    tab.addEventListener("click",function(){ switchPerspectiveTab(tab.dataset.perspTab); });
+    tab.addEventListener("click", function(){ switchPerspectiveTab(tab.dataset.perspTab); });
   });
-  perspModeSeg.addEventListener("click",function(e){
-    var button=e.target.closest("button");
-    if(!button) return;
-    perspMode=button.dataset.perspMode;
+  perspModeSeg.addEventListener("click", function(e){
+    var btn = e.target.closest("button");
+    if(!btn) return;
+    perspMode = btn.dataset.perspMode;
     Array.prototype.slice.call(perspModeSeg.querySelectorAll("button")).forEach(function(item){
-      item.setAttribute("aria-pressed",item===button ? "true" : "false");
+      item.setAttribute("aria-pressed", item === btn ? "true" : "false");
     });
     newPerspectiveScene();
   });
-  perspGuideBtn.addEventListener("click",function(){
-    perspGuidesVisible=!perspGuidesVisible;
-    perspGuideBtn.setAttribute("aria-pressed",perspGuidesVisible ? "true" : "false");
-    perspGuideBtn.textContent="収束ガイド："+(perspGuidesVisible ? "表示" : "非表示");
+  perspGuideBtn.addEventListener("click", function(){
+    perspGuidesVisible = !perspGuidesVisible;
+    perspGuideBtn.setAttribute("aria-pressed", perspGuidesVisible ? "true" : "false");
+    perspGuideBtn.textContent = "収束ガイド：" + (perspGuidesVisible ? "表示" : "非表示");
     requestPerspectiveRender();
   });
-  perspClearBtn.addEventListener("click",function(){
-    perspectiveUserStrokes=[]; currentPerspectiveStroke=[]; requestPerspectiveRender();
+  perspClearBtn.addEventListener("click", function(){
+    perspectiveUserStrokes = [];
+    currentPerspectiveStroke = [];
+    requestPerspectiveRender();
   });
-  perspNewBtn.addEventListener("click",newPerspectiveScene);
-  quizNextBtn.addEventListener("click",makeQuiz);
+  perspNewBtn.addEventListener("click", newPerspectiveScene);
+  quizNextBtn.addEventListener("click", makeQuiz);
 
-  perspectiveCanvas.addEventListener("pointerdown",function(e){
-    if(activeScreen!=="perspective" || activePerspTab!=="practice" || !perspectiveScene) return;
+  perspectiveCanvas.addEventListener("pointerdown", function(e){
+    if(activeScreen !== "perspective" || activePerspTab !== "practice" || !perspectiveScene) return;
     try{ perspectiveCanvas.setPointerCapture(e.pointerId); }catch(err){}
-    isPerspectiveDrawing=true;
-    currentPerspectiveStroke=[pointFromPerspectiveEvent(e)];
+    isPerspectiveDrawing = true;
+    currentPerspectiveStroke = [pointFromPerspectiveEvent(e)];
     requestPerspectiveRender();
     e.preventDefault();
-  },{passive:false});
-  perspectiveCanvas.addEventListener("pointermove",function(e){
+  }, {passive:false});
+  perspectiveCanvas.addEventListener("pointermove", function(e){
     if(!isPerspectiveDrawing) return;
     currentPerspectiveStroke.push(pointFromPerspectiveEvent(e));
     requestPerspectiveRender();
     e.preventDefault();
-  },{passive:false});
+  }, {passive:false});
   function finishPerspectivePointer(e){
     if(!isPerspectiveDrawing) return;
-    isPerspectiveDrawing=false;
+    isPerspectiveDrawing = false;
     try{ perspectiveCanvas.releasePointerCapture(e.pointerId); }catch(err){}
-    if(currentPerspectiveStroke.length>1) perspectiveUserStrokes.push(currentPerspectiveStroke);
-    currentPerspectiveStroke=[];
+    if(currentPerspectiveStroke.length > 1) perspectiveUserStrokes.push(currentPerspectiveStroke);
+    currentPerspectiveStroke = [];
     requestPerspectiveRender();
   }
-  window.addEventListener("pointerup",finishPerspectivePointer);
-  window.addEventListener("pointercancel",finishPerspectivePointer);
+  window.addEventListener("pointerup", finishPerspectivePointer);
+  window.addEventListener("pointercancel", finishPerspectivePointer);
 
   retryBtn.addEventListener("click", function(){
     scoredStrokes = null;
@@ -2320,6 +2456,7 @@
   function boot(){
     loadState();
     updateStatsUI();
+    updateQuizScore();
     resizeCanvas();
     newGuide();
     updateProgressUI();
@@ -2328,6 +2465,8 @@
 
     var ro = new ResizeObserver(function(){ handleResize(); });
     ro.observe(wrap);
+    ro.observe(perspectiveCanvasWrap);
+    ro.observe(quizCanvasWrap);
     window.addEventListener("orientationchange", function(){ setTimeout(handleResize, 300); });
   }
 
